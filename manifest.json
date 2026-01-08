@@ -1,0 +1,22 @@
+{
+  "name": "Land Law",
+  "short_name": "Land Law",
+  "description": "คู่มือปฏิบัติงานด้านที่ดิน",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://live.staticflickr.com/65535/54707063169_f468f43d05_w.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://live.staticflickr.com/65535/54707063169_f468f43d05_w.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
