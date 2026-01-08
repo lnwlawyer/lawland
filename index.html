@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบจัดเก็บเอกสาร</title>
+    <!-- เชื่อมต่อกับไฟล์ Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -116,6 +119,13 @@
             display: flex;
             min-height: 100vh;
         }
+        
+        /* Mobile Header */
+        .mobile-header {
+            background: linear-gradient(90deg, var(--sidebar-gradient-start) 0%, var(--sidebar-gradient-end) 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
         /* Sidebar styling */
         .sidebar {
             width: 280px; /* Fixed width for sidebar */
@@ -125,7 +135,8 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            transition: width 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease;
+            z-index: 50; /* Ensure above content on mobile */
         }
         .sidebar-header {
             font-size: 1.75rem; /* text-3xl */
@@ -175,7 +186,6 @@
         .sidebar-nav a.active .icon {
             stroke: var(--active-menu-text);
         }
-
 
         /* Main content area */
         .content-area {
@@ -377,16 +387,44 @@
             .main-layout {
                 flex-direction: column;
             }
+            
+            /* Sidebar as off-canvas menu */
             .sidebar {
-                width: 100%;
-                border-radius: 0;
-                padding: 15px;
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 280px;
+                transform: translateX(-100%); /* Hidden by default */
+                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
             }
+            
+            .sidebar.open {
+                transform: translateX(0); /* Slide in */
+            }
+
+            .sidebar-header {
+                margin-bottom: 20px;
+            }
+
             .content-area {
-                padding: 20px;
+                padding: 15px;
+                padding-top: 20px;
             }
             .container {
                 padding: 20px;
+            }
+            
+            /* Overlay */
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 40;
+                backdrop-filter: blur(2px);
             }
         }
     </style>
@@ -431,9 +469,32 @@
     </div>
 
     <!-- Main App Layout (Hidden initially) -->
-    <div id="mainLayout" class="main-layout hidden">
+    <div id="mainLayout" class="main-layout hidden relative">
+        <!-- Overlay for mobile sidebar -->
+        <div id="sidebarOverlay" class="sidebar-overlay hidden md:hidden"></div>
+
+        <!-- Mobile Header (Visible only on mobile) -->
+        <div class="mobile-header md:hidden flex justify-between items-center p-4 text-white">
+            <button id="mobileMenuBtn" class="p-2 rounded-md hover:bg-white/20 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <span class="font-bold text-lg">ระบบเอกสาร</span>
+            <div class="w-8"></div> <!-- Spacer for visual balance -->
+        </div>
+
         <!-- Sidebar -->
-        <nav class="sidebar">
+        <nav class="sidebar" id="sidebar">
+            <!-- Close button for mobile -->
+            <div class="md:hidden flex justify-end mb-2">
+                <button id="closeSidebarBtn" class="text-white p-2 hover:bg-white/20 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
             <h1 class="sidebar-header">ระบบเอกสาร</h1>
             <div id="sidebar-nav-container" class="sidebar-nav">
                 <!-- Sidebar items will be dynamically inserted here -->
@@ -496,6 +557,12 @@
         const googleLoginBtn = document.getElementById('googleLoginBtn');
         const emailLoginForm = document.getElementById('emailLoginForm');
         const logoutBtn = document.getElementById('logoutBtn');
+        
+        // Mobile Menu Elements
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
 
         // --- Auth Logic ---
         
@@ -584,11 +651,22 @@
             loginErrorMsg.textContent = msg;
             loginErrorMsg.classList.remove('hidden');
         }
+        
+        // --- Mobile Menu Logic ---
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('hidden');
+        }
 
         // --- Event Listeners ---
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         emailLoginForm.addEventListener('submit', handleEmailLogin);
         logoutBtn.addEventListener('click', handleLogout);
+        
+        // Mobile Menu Listeners
+        if(mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleSidebar);
+        if(closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
+        if(sidebarOverlay) sidebarOverlay.addEventListener('click', toggleSidebar);
 
 
         // ---------------------------------------------------------
@@ -746,6 +824,11 @@
                     const contentId = this.dataset.contentId;
                     historyStack = [contentId]; // Reset history for new top-level section
                     renderContent(contentId);
+                    
+                    // Close sidebar on mobile after selection
+                    if (window.innerWidth <= 768) {
+                        toggleSidebar();
+                    }
                 });
             });
         }
