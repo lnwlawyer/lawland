@@ -1164,6 +1164,7 @@
                 let visible = 0;
                 mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').forEach(card => {
                     const matches = matchesSearchTerms(card.dataset.menuSearch, query);
+                    if (!matches && card.contains(document.activeElement)) menuSearch.focus();
                     card.hidden = !matches;
                     card.tabIndex = matches ? 0 : -1;
                     if (matches) visible++;
