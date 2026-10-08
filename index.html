@@ -65,7 +65,18 @@
         }
         
         /* Utility Classes */
-        .hidden { display: none !important; }
+        .hidden, [hidden] { display: none !important; }
+        :focus-visible {
+            outline: 3px solid #2563eb;
+            outline-offset: 3px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
 
         /* Login Screen Styles */
         .login-wrapper {
@@ -600,7 +611,7 @@
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
         } catch (e) {
-            console.warn("Firebase not configured correctly. Using mock mode for UI preview.");
+            console.warn("Firebase authentication initialization failed.");
         }
 
         // --- DOM Elements ---
@@ -644,7 +655,7 @@
                 await signInWithPopup(auth, provider);
             } catch (error) {
                 console.error(error);
-                showError("เกิดข้อผิดพลาดในการล็อกอินผ่าน Google: " + error.message);
+                showError("ไม่สามารถเข้าสู่ระบบด้วย Google ได้ กรุณาลองใหม่อีกครั้ง");
             }
         }
 
@@ -670,12 +681,26 @@
             if (auth) {
                 await signOut(auth);
             } else {
-                location.reload(); // Reload for demo mode
+                showError("ไม่สามารถเชื่อมต่อระบบยืนยันตัวตนได้ กรุณาลองใหม่ภายหลัง");
             }
         }
 
         // 3. UI Helper Functions
+        let authSessionGeneration = 0;
+        let activeAuthenticatedUid = null;
         function showMainApp(user) {
+            if (activeAuthenticatedUid !== user.uid) {
+                authSessionGeneration++;
+                latestNavigationRequest++;
+                historyStack = [];
+                documentData = Object.create(null);
+            loadedDocumentSheets = new Set();
+            favoriteDocumentLinks.clear();
+                mainMenuData = [];
+                subMenuData = Object.create(null);
+                window.appInitialized = false;
+                activeAuthenticatedUid = user.uid;
+            }
             loginPage.classList.add('hidden');
             mainLayout.classList.remove('hidden');
             userDisplay.textContent = user.email;
@@ -683,7 +708,9 @@
             // Start the original app logic
             if (!window.appInitialized) {
                 window.appInitialized = true;
-                initApp().catch(error => {
+                const sessionGeneration = authSessionGeneration;
+                initApp(sessionGeneration).catch(error => {
+                    if (sessionGeneration !== authSessionGeneration) return;
                     window.appInitialized = false;
                     console.error('Application initialization failed:', error);
                 });
@@ -691,7 +718,17 @@
         }
 
         function showLoginScreen() {
+            activeAuthenticatedUid = null;
+            authSessionGeneration++;
             window.appInitialized = false;
+            // Invalidate in-flight navigation and clear session-scoped document data.
+            latestNavigationRequest++;
+            historyStack = [];
+            documentData = Object.create(null);
+            loadedDocumentSheets = new Set();
+            favoriteDocumentLinks.clear();
+            mainMenuData = [];
+            subMenuData = {};
             mainLayout.classList.add('hidden');
             loginPage.classList.remove('hidden');
             document.getElementById('emailInput').value = '';
@@ -736,7 +773,10 @@
         let historyStack = [];
         let mainMenuData = [];
         let subMenuData = {};
-        let documentData = {};
+        let documentData = Object.create(null);
+        let loadedDocumentSheets = new Set();
+        let documentSearchShortcutHandler = null;
+        const favoriteDocumentLinks = new Set();
         const defaultImageUrl = "https://placehold.co/100x100/d1fae5/065f46?text=%3F";
 
         const ICONS = {
@@ -819,21 +859,20 @@
                 // Bound the wait for external data without changing the API contract.
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
-                let response;
+                let result;
                 try {
-                    response = await fetch(url, {
+                    const response = await fetch(url, {
                         method: 'GET',
                         redirect: 'follow',
                         signal: controller.signal
                     });
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok for sheet: ${sheetName}. Status: ${response.status}`);
+                    }
+                    result = await response.json();
                 } finally {
                     clearTimeout(timeoutId);
                 }
-
-                if (!response.ok) {
-                    throw new Error(`Network response was not ok for sheet: ${sheetName}. Status: ${response.status}`);
-                }
-                const result = await response.json();
                 if (!result || typeof result !== 'object' || result.success !== true || !Array.isArray(result.data)) {
                     throw new Error('Invalid data response for sheet: ' + sheetName);
                 }
@@ -849,11 +888,12 @@
             if (!Array.isArray(mainMenus) || !Array.isArray(allSubMenus)) {
                 throw new TypeError('Menu data must be arrays');
             }
-            mainMenuData = mainMenus;
-            subMenuData = {};
+            mainMenuData = mainMenus.filter(item => item && typeof item === 'object' && typeof item.menuId === 'string');
+            subMenuData = Object.create(null);
             
             // Group all sub-menus by their parent ID
             allSubMenus.forEach(item => {
+                if (!item || typeof item !== 'object' || typeof item.parentMenuId !== 'string' || typeof item.subMenuId !== 'string') return;
                 const parentId = item.parentMenuId;
                 if (!subMenuData[parentId]) {
                     subMenuData[parentId] = [];
@@ -921,7 +961,9 @@
             }, 5000); // Hide after 5 seconds
         }
 
+        let latestNavigationRequest = 0;
         async function renderContent(contentId, isBackNavigation = false) {
+            const navigationRequest = ++latestNavigationRequest;
             // Update history stack
             if (!isBackNavigation) {
                 if (historyStack[historyStack.length - 1] !== contentId) {
@@ -947,16 +989,6 @@
             if (contentId === 'settings') {
                  htmlContent += `
                     <div class="space-y-6">
-                        <div class="setting-item flex justify-between items-center">
-                            <div>
-                                <h4 class="font-semibold text-lg text-gray-800">การแจ้งเตือน</h4>
-                                <p class="text-gray-500">รับการแจ้งเตือนเมื่อมีเอกสารใหม่</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
                         <div class="setting-item">
                             <h4 class="font-semibold text-lg text-gray-800 mb-3">เลือกธีม</h4>
                             <div id="theme-selector" class="flex flex-wrap gap-3">
@@ -969,13 +1001,7 @@
                                 <button data-theme="dark" class="theme-button px-4 py-2 rounded-lg bg-gray-800 text-white font-semibold">ธีมมืด</button>
                             </div>
                         </div>
-                         <div class="setting-item">
-                            <h4 class="font-semibold text-lg text-gray-800 mb-2">ภาษา</h4>
-                            <select class="w-full p-2 border border-gray-300 rounded-lg">
-                                <option>ภาษาไทย</option>
-                                <option>English</option>
-                            </select>
-                        </div>
+                        <p class="text-sm text-gray-600">ขณะนี้แอปรองรับภาษาไทย และยังไม่มีระบบแจ้งเตือนเอกสารใหม่</p>
                     </div>
                  `;
             } else if (contentId === 'about') {
@@ -997,55 +1023,80 @@
             }
             else if (subMenuData[contentId] && subMenuData[contentId].length > 0) {
                 // Renders a list of cards (which are sub-menus)
-                htmlContent += '<div class="menu-card-grid">';
+                htmlContent += `<p id="menuCount" class="text-sm text-gray-600 mb-3" role="status">หมวดทั้งหมด ${subMenuData[contentId].length} รายการ</p>`;
+                htmlContent += '<div class="mb-4"><label for="menuSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="subMenuGrid"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>';
+                htmlContent += '<div id="subMenuGrid" class="menu-card-grid">';
                 subMenuData[contentId].forEach(item => {
                     const imageUrl = item.imageUrl || defaultImageUrl;
                     htmlContent += `
-                        <div class="menu-card" role="button" tabindex="0" aria-label="${escapeHtml(item.subMenuTitle)}" data-menu-item="${escapeHtml(item.subMenuId)}">
+                        <div class="menu-card" role="button" tabindex="0" aria-label="${escapeHtml(item.subMenuTitle)}" data-menu-search="${escapeHtml(String(item.subMenuTitle ?? '').toLocaleLowerCase('th'))}" data-menu-item="${escapeHtml(item.subMenuId)}">
                             <div class="menu-card-image-wrapper">
                                 <img src="${escapeHtml(safeExternalUrl(imageUrl) || defaultImageUrl)}" alt="${escapeHtml(item.subMenuTitle)}" class="menu-card-image" onerror="this.onerror=null;this.src='${defaultImageUrl}'">
                             </div>
                             <span class="menu-card-text">${escapeHtml(item.subMenuTitle)}</span>
                         </div>`;
                 });
-                htmlContent += '</div>';
+                htmlContent += '</div><p id="menuSearchEmpty" class="text-gray-600 mt-4 hidden" role="status">ไม่พบหมวดที่ตรงกับคำค้นหา</p>';
             } else {
                 // Lazy load documents if not already fetched
                 const parentMenuId = historyStack[0];
                 const docSheetName = `docs_${parentMenuId}`;
                 
-                if (!documentData[contentId] && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
-                    const docs = await fetchData(docSheetName);
-                    if (Array.isArray(docs) && docs.length > 0) {
-                        // Re-organize fetched docs by their parent ID
+                if (!loadedDocumentSheets.has(docSheetName) && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
+                    let docs;
+                    try {
+                        docs = await fetchData(docSheetName);
+                    } catch (error) {
+                        if (navigationRequest !== latestNavigationRequest) return;
+                        console.error('Failed to load document sheet.', error);
+                        mainContentDisplay.innerHTML = '<div role="alert" class="p-4 border border-red-300 rounded-lg"><p class="mb-3">ไม่สามารถโหลดรายการเอกสารได้ กรุณาลองอีกครั้ง</p><button id="retryDocumentLoad" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">ลองโหลดอีกครั้ง</button></div>';
+                        document.getElementById('retryDocumentLoad').addEventListener('click', () => renderContent(contentId, true));
+                        return;
+                    }
+                    if (navigationRequest !== latestNavigationRequest) return;
+                    // Cache each fetched sheet once, including empty results, to avoid
+                    // duplicate document entries when visiting sibling categories.
+                    if (!loadedDocumentSheets.has(docSheetName)) {
+                        loadedDocumentSheets.add(docSheetName);
                         docs.forEach(doc => {
+                            if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
                             if (!documentData[doc.parentSubMenuId]) {
                                 documentData[doc.parentSubMenuId] = [];
                             }
                             documentData[doc.parentSubMenuId].push(doc);
                         });
                     }
+                    if (!documentData[contentId]) documentData[contentId] = [];
                 }
 
-                if (documentData[contentId]) {
+                if (Array.isArray(documentData[contentId]) && documentData[contentId].length > 0) {
                     // Renders a list of documents
                     htmlContent += `<h3 class="text-xl font-semibold text-gray-700 mb-5">รายการเอกสารสำหรับ ${escapeHtml(title)}</h3>`;
+                    htmlContent += `<p id="documentCount" class="text-sm text-gray-600 mb-3" role="status">เอกสารทั้งหมด ${documentData[contentId].length} รายการ</p>`;
+                    htmlContent += `<div class="mb-4"><label for="documentSort" class="block text-sm font-semibold text-gray-700 mb-2">เรียงลำดับเอกสาร</label><select id="documentSort" class="w-full p-3 border border-gray-300 rounded-lg"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></div>`;
+                    htmlContent += `<div class="mb-3"><button id="resetDocumentFilters" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างตัวกรองและการเรียงลำดับ</button></div>`;
+                    htmlContent += `<div class="mb-3"><label class="inline-flex items-center gap-2"><input id="favoritesOnly" type="checkbox"> แสดงเฉพาะรายการโปรด</label></div>`;
+                    htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"><button id="clearDocumentSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
-                    documentData[contentId].forEach(doc => {
+                    documentData[contentId].forEach((doc, originalIndex) => {
                         htmlContent += `
-                            <div class="document-item">
+                            <div class="document-item" data-original-index="${originalIndex}" data-document-name="${escapeHtml(doc.docName)}" data-document-search="${escapeHtml(String(doc.docName ?? '').toLocaleLowerCase('th'))}">
                                 <span class="text-gray-800 font-medium">${escapeHtml(doc.docName)}</span>
-                                <button class="btn-read" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" data-document-name="${escapeHtml(doc.docName)}">
+                                <button type="button" class="btn-read" aria-label="อ่านเอกสาร ${escapeHtml(doc.docName)}" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" data-document-name="${escapeHtml(doc.docName)}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.816 1.201-2.085 2.4-3.516 3.235C9.879 12.332 8.12 13.5 6 13.5 3.879 12.332 2.121 11.168.827 9.543A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg>
                                     <span>อ่าน</span>
                                 </button>
+                                <a class="btn-open-document px-3 py-2 rounded-lg border border-gray-300 inline-block" href="${escapeHtml(safeExternalUrl(doc.docUrl) || '#')}" target="_blank" rel="noopener noreferrer" aria-label="เปิดเอกสาร ${escapeHtml(doc.docName)} ในแท็บใหม่">เปิดในแท็บใหม่</a>
+                                <button type="button" class="btn-copy-document" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" aria-label="คัดลอกลิงก์เอกสาร ${escapeHtml(doc.docName)}">คัดลอกลิงก์</button>
+                                <button type="button" class="btn-favorite-document" data-favorite-key="${escapeHtml(safeExternalUrl(doc.docUrl))}" data-document-name="${escapeHtml(doc.docName)}" aria-pressed="false" aria-label="เพิ่มเอกสาร ${escapeHtml(doc.docName)} ในรายการโปรด">☆ รายการโปรด</button>
                             </div>`;
                     });
-                    htmlContent += `</div>`;
+                    htmlContent += `</div><p id="documentSearchEmpty" class="text-gray-600 mt-4 hidden" role="status">ไม่พบเอกสารที่ตรงกับคำค้นหา</p>`;
                 } else {
                      htmlContent += `<p class="text-gray-600">ยังไม่มีเนื้อหาในหมวดนี้</p>`;
                 }
             }
+            if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
 
             // Attach event listener to back button
@@ -1058,19 +1109,181 @@
                 });
             }
 
+            // Restore original sorting and remove all search/favorites filters.
+            const resetDocumentFilters = document.getElementById('resetDocumentFilters');
+            resetDocumentFilters?.addEventListener('click', () => {
+                const search = document.getElementById('documentSearch');
+                const favorites = document.getElementById('favoritesOnly');
+                const sort = document.getElementById('documentSort');
+                if (search) search.value = '';
+                if (favorites) favorites.checked = false;
+                if (sort) {
+                    sort.value = 'original';
+                    sort.dispatchEvent(new Event('change'));
+                }
+                search?.dispatchEvent(new Event('input'));
+                search?.focus();
+            });
+
+            // Filter visible submenu cards without requesting more data.
+            const menuSearch = document.getElementById('menuSearch');
+            document.getElementById('clearMenuSearch')?.addEventListener('click', () => {
+                if (!menuSearch) return;
+                menuSearch.value = '';
+                menuSearch.dispatchEvent(new Event('input'));
+                menuSearch.focus();
+            });
+            menuSearch?.addEventListener('input', () => {
+                const query = menuSearch.value.trim().toLocaleLowerCase('th');
+                let visible = 0;
+                mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').forEach(card => {
+                    const matches = card.dataset.menuSearch.includes(query);
+                    card.hidden = !matches;
+                    if (matches) visible++;
+                });
+                document.getElementById('menuSearchEmpty').classList.toggle('hidden', visible !== 0);
+                document.getElementById('menuCount').textContent = query
+                    ? `พบ ${visible} จาก ${mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').length} หมวด`
+                    : `หมวดทั้งหมด ${visible} รายการ`;
+            });
+
+            // Sort only the currently rendered items; preserve original source order.
+            const documentSort = document.getElementById('documentSort');
+            if (documentSort) {
+                documentSort.addEventListener('change', () => {
+                    const list = document.getElementById('documentList');
+                    const items = [...list.querySelectorAll('.document-item')];
+                    const collator = new Intl.Collator('th', { sensitivity: 'base', numeric: true });
+                    items.sort((a, b) => {
+                        if (documentSort.value === 'original') return Number(a.dataset.originalIndex) - Number(b.dataset.originalIndex);
+                        const comparison = collator.compare(a.dataset.documentName, b.dataset.documentName);
+                        return documentSort.value === 'desc' ? -comparison : comparison;
+                    });
+                    items.forEach(item => list.appendChild(item));
+                });
+            }
+
+            // Escape clears the current filter; slash focuses the document search.
+            if (documentSearchShortcutHandler) {
+                document.removeEventListener('keydown', documentSearchShortcutHandler);
+                documentSearchShortcutHandler = null;
+            }
+            const activeDocumentSearch = document.getElementById('documentSearch');
+            if (activeDocumentSearch) {
+                documentSearchShortcutHandler = event => {
+                    if (event.key === 'Escape' && document.activeElement === activeDocumentSearch) {
+                        activeDocumentSearch.value = '';
+                        activeDocumentSearch.dispatchEvent(new Event('input'));
+                        activeDocumentSearch.blur();
+                    } else if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey &&
+                               !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+                        event.preventDefault();
+                        activeDocumentSearch.focus();
+                    }
+                };
+                document.addEventListener('keydown', documentSearchShortcutHandler);
+            }
+
+            // Favorites are in-memory only: no account data is persisted or shared.
+            const favoriteButtons = [...mainContentDisplay.querySelectorAll('.btn-favorite-document')];
+            const favoritesOnly = document.getElementById('favoritesOnly');
+            const refreshFavorites = () => {
+                favoriteButtons.forEach(button => {
+                    const selected = !!button.dataset.favoriteKey && favoriteDocumentLinks.has(button.dataset.favoriteKey);
+                    button.setAttribute('aria-pressed', String(selected));
+                    button.setAttribute('aria-label', `${selected ? 'นำออกจาก' : 'เพิ่มใน'}รายการโปรด: ${button.dataset.documentName}`);
+                    button.textContent = selected ? '★ รายการโปรด' : '☆ รายการโปรด';
+                });
+                documentSearch?.dispatchEvent(new Event('input'));
+            };
+            favoriteButtons.forEach(button => button.addEventListener('click', () => {
+                const key = button.dataset.favoriteKey;
+                if (!key) {
+                    showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
+                    return;
+                }
+                if (favoriteDocumentLinks.has(key)) favoriteDocumentLinks.delete(key);
+                else favoriteDocumentLinks.add(key);
+                refreshFavorites();
+            }));
+            favoritesOnly?.addEventListener('change', refreshFavorites);
+
+            // Search only the currently rendered category; no network requests.
+            const documentSearch = document.getElementById('documentSearch');
+            if (documentSearch) {
+                document.getElementById('clearDocumentSearch')?.addEventListener('click', () => {
+                    documentSearch.value = '';
+                    documentSearch.dispatchEvent(new Event('input'));
+                    documentSearch.focus();
+                });
+                documentSearch.addEventListener('input', () => {
+                    const query = documentSearch.value.trim().toLocaleLowerCase('th');
+                    let visible = 0;
+                    mainContentDisplay.querySelectorAll('#documentList .document-item').forEach(item => {
+                        const favoriteKey = item.querySelector('.btn-favorite-document')?.dataset.favoriteKey;
+                        const matches = item.dataset.documentSearch.includes(query) &&
+                            (!favoritesOnly?.checked || (!!favoriteKey && favoriteDocumentLinks.has(favoriteKey)));
+                        item.hidden = !matches;
+                        if (matches) visible++;
+                    });
+                    document.getElementById('documentSearchEmpty').classList.toggle('hidden', visible !== 0);
+                    const total = mainContentDisplay.querySelectorAll('#documentList .document-item').length;
+                    document.getElementById('documentCount').textContent = (query || favoritesOnly?.checked)
+                        ? `พบ ${visible} จาก ${total} รายการ`
+                        : `เอกสารทั้งหมด ${total} รายการ`;
+                });
+            }
+
             // Attach event listener for "Read" buttons
             const readButtons = document.querySelectorAll('.btn-read');
             readButtons.forEach(button => {
                 button.addEventListener('click', function() {
                     const docName = this.dataset.documentName;
                     const docLink = this.dataset.documentLink;
-                    showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
-                    if (docLink) {
-                        window.open(safeExternalUrl(docLink), '_blank', 'noopener,noreferrer');
+                    const safeLink = safeExternalUrl(docLink);
+                    if (safeLink) {
+                        const opened = window.open(safeLink, '_blank', 'noopener,noreferrer');
+                        if (opened === null) {
+                            showMessage('เบราว์เซอร์อาจบล็อกการเปิดเอกสาร กรุณาอนุญาตป๊อปอัปแล้วลองใหม่', 'error');
+                        } else {
+                            showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
+                        }
+                    } else {
+                        showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
                     }
                 });
             });
             
+            // Disable invalid external anchors rather than navigating to '#'.
+            mainContentDisplay.querySelectorAll('.btn-open-document').forEach(link => {
+                if (link.getAttribute('href') === '#') {
+                    link.removeAttribute('href');
+                    link.setAttribute('aria-disabled', 'true');
+                    link.addEventListener('click', event => {
+                        event.preventDefault();
+                        showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
+                    });
+                }
+            });
+
+            // Copy only validated external links. Never copy unsafe schemes.
+            mainContentDisplay.querySelectorAll('.btn-copy-document').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const safeLink = safeExternalUrl(button.dataset.documentLink);
+                    if (!safeLink) {
+                        showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
+                        return;
+                    }
+                    try {
+                        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+                        await navigator.clipboard.writeText(safeLink);
+                        showMessage('คัดลอกลิงก์เอกสารแล้ว', 'success');
+                    } catch {
+                        showMessage('ไม่สามารถคัดลอกลิงก์ได้ กรุณาใช้ปุ่มอ่านเอกสาร', 'error');
+                    }
+                });
+            });
+
             // Attach event listener for theme selector
             const themeSelector = document.getElementById('theme-selector');
             if (themeSelector) {
@@ -1100,7 +1313,7 @@
             });
         }
         
-        async function initApp() {
+        async function initApp(sessionGeneration = authSessionGeneration) {
             loadTheme();
             mainContentDisplay.innerHTML = '<p>กำลังโหลดข้อมูลเมนู...</p>';
             
@@ -1110,6 +1323,7 @@
                     fetchData('SubMenu')
                 ]);
                 
+                if (sessionGeneration !== authSessionGeneration) return;
                 if (mainMenus.length > 0 && subMenus.length > 0) {
                     buildDataStructures(mainMenus, subMenus);
                     renderSidebar();
@@ -1118,9 +1332,11 @@
                     throw new Error("ข้อมูลหลัก (MainMenu หรือ SubMenu) ที่ได้รับจาก Google Sheets ว่างเปล่า");
                 }
             } catch (error) {
+                if (sessionGeneration !== authSessionGeneration) return;
                 console.error("Failed to initialize from Google Sheets.", error);
                 showMessage('เกิดข้อผิดพลาดในการโหลดข้อมูลจากชีท', 'error');
-                mainContentDisplay.innerHTML = '<p class="text-red-500">ผิดพลาด: ไม่สามารถโหลดข้อมูลหลักได้ กรุณาตรวจสอบ URL ของ Web App และชื่อชีท</p>';
+                mainContentDisplay.innerHTML = '<div role="alert" class="p-4 border border-red-300 rounded-lg"><p class="text-red-700 mb-3">ไม่สามารถโหลดข้อมูลหลักได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง</p><button id="retryAppInit" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">ลองโหลดข้อมูลใหม่</button></div>';
+                document.getElementById('retryAppInit').addEventListener('click', () => initApp(authSessionGeneration));
             }
         }
         
@@ -1133,14 +1349,14 @@
         mainContentDisplay.addEventListener('keydown', function(e) {
             if (e.key !== 'Enter' && e.key !== ' ') return;
             const target = e.target.closest('.menu-card');
-            if (!target || target !== e.target || !target.dataset.menuItem) return;
+            if (!target || target !== e.target || target.hidden || !target.dataset.menuItem) return;
             e.preventDefault();
             renderContent(target.dataset.menuItem);
         });
 
         mainContentDisplay.addEventListener('click', function(e) {
             const target = e.target.closest('.menu-card');
-            if (target && target.dataset.menuItem) {
+            if (target && !target.hidden && target.dataset.menuItem) {
                 e.preventDefault();
                 const clickedMenuItemId = target.dataset.menuItem;
                 renderContent(clickedMenuItemId);
