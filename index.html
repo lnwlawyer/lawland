@@ -387,6 +387,11 @@
         .reader-notes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 16px; border-top: 1px solid #cbd5e1; }
         .reader-notes textarea { flex: 1; min-width: 160px; padding: 6px; border: 1px solid #94a3b8; border-radius: 6px; }
         .reader-notes button { padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
+        .reader-sidebar-group { margin: 8px 10px; border: 1px solid rgba(148,163,184,.5); border-radius: 8px; }
+        .reader-sidebar-group summary { padding: 10px 12px; cursor: pointer; font-weight: 600; }
+        .reader-sidebar-group summary:focus-visible { outline: 2px solid #059669; }
+        .reader-sidebar-group ul { margin: 0; padding: 0 0 6px; }
+        .reader-sidebar-group li a { display: block; padding: 8px 16px; }
         .reader-library-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px; border-bottom: 1px solid #e2e8f0; }
         .reader-library-row span { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
         .reader-library-row button { padding: 8px 12px; border: 1px solid #94a3b8; border-radius: 6px; cursor: pointer; }
@@ -1248,6 +1253,10 @@
             bottomNavHtml += '</ul></div>';
             
             sidebarNavContainer.innerHTML = mainNavHtml + bottomNavHtml;
+            if (historyStack[0] === 'reader-recent' || historyStack[0] === 'reader-later') {
+                const group = sidebarNavContainer.querySelector('.reader-sidebar-group');
+                if (group) group.open = true;
+            }
             
             // Re-attach event listeners after rendering
             document.querySelectorAll('.sidebar-nav a').forEach(link => {
@@ -1255,6 +1264,7 @@
                     e.preventDefault();
                     const contentId = this.dataset.contentId;
                     historyStack = [contentId]; // Reset history for new top-level section
+                    if (contentId === 'reader-recent' || contentId === 'reader-later') this.closest('details').open = true;
                     renderContent(contentId);
                     
                     // Close sidebar on mobile after selection
