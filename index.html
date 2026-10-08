@@ -989,16 +989,6 @@
             if (contentId === 'settings') {
                  htmlContent += `
                     <div class="space-y-6">
-                        <div class="setting-item flex justify-between items-center">
-                            <div>
-                                <h4 class="font-semibold text-lg text-gray-800">การแจ้งเตือน</h4>
-                                <p class="text-gray-500">รับการแจ้งเตือนเมื่อมีเอกสารใหม่</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
                         <div class="setting-item">
                             <h4 class="font-semibold text-lg text-gray-800 mb-3">เลือกธีม</h4>
                             <div id="theme-selector" class="flex flex-wrap gap-3">
@@ -1011,13 +1001,7 @@
                                 <button data-theme="dark" class="theme-button px-4 py-2 rounded-lg bg-gray-800 text-white font-semibold">ธีมมืด</button>
                             </div>
                         </div>
-                         <div class="setting-item">
-                            <h4 class="font-semibold text-lg text-gray-800 mb-2">ภาษา</h4>
-                            <select class="w-full p-2 border border-gray-300 rounded-lg">
-                                <option>ภาษาไทย</option>
-                                <option>English</option>
-                            </select>
-                        </div>
+                        <p class="text-sm text-gray-600">ขณะนี้แอปรองรับภาษาไทย และยังไม่มีระบบแจ้งเตือนเอกสารใหม่</p>
                     </div>
                  `;
             } else if (contentId === 'about') {
