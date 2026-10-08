@@ -651,15 +651,8 @@
                 }
             });
         } else {
-            // Fallback if no firebase config (Show login but allow bypass for demo)
-            loginErrorMsg.innerHTML = "กรุณาใส่ Firebase Config ในโค้ด (บรรทัด ~470)<br><span class='text-xs text-gray-400'>กำลังใช้โหมดแสดงตัวอย่าง</span>";
-            loginErrorMsg.classList.remove('hidden');
-            
-            // Allow demo login
-            emailLoginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                showMainApp({ email: "demo@user.com" });
-            });
+            // Fail closed when authentication cannot be initialized.
+            showError("ไม่สามารถเชื่อมต่อระบบยืนยันตัวตนได้ กรุณาลองใหม่ภายหลัง");
         }
 
         // 2. Login Functions
@@ -708,12 +701,16 @@
             
             // Start the original app logic
             if (!window.appInitialized) {
-                initApp(); 
                 window.appInitialized = true;
+                initApp().catch(error => {
+                    window.appInitialized = false;
+                    console.error('Application initialization failed:', error);
+                });
             }
         }
 
         function showLoginScreen() {
+            window.appInitialized = false;
             mainLayout.classList.add('hidden');
             loginPage.classList.remove('hidden');
             document.getElementById('emailInput').value = '';
