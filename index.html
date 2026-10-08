@@ -1081,7 +1081,7 @@
                     htmlContent += `<div class="mb-4"><label for="documentSort" class="block text-sm font-semibold text-gray-700 mb-2">เรียงลำดับเอกสาร</label><select id="documentSort" class="w-full p-3 border border-gray-300 rounded-lg"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></div>`;
                     htmlContent += `<div class="mb-3"><button id="resetDocumentFilters" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างตัวกรองและการเรียงลำดับ</button></div>`;
                     htmlContent += `<div class="mb-3"><label class="inline-flex items-center gap-2"><input id="favoritesOnly" type="checkbox"> แสดงเฉพาะรายการโปรด</label></div>`;
-                    htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"></div>`;
+                    htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"><button id="clearDocumentSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
                     documentData[contentId].forEach((doc, originalIndex) => {
                         htmlContent += `
@@ -1192,6 +1192,11 @@
             // Search only the currently rendered category; no network requests.
             const documentSearch = document.getElementById('documentSearch');
             if (documentSearch) {
+                document.getElementById('clearDocumentSearch')?.addEventListener('click', () => {
+                    documentSearch.value = '';
+                    documentSearch.dispatchEvent(new Event('input'));
+                    documentSearch.focus();
+                });
                 documentSearch.addEventListener('input', () => {
                     const query = documentSearch.value.trim().toLocaleLowerCase('th');
                     let visible = 0;
