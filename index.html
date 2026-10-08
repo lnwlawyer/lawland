@@ -1134,10 +1134,11 @@
                 menuSearch.focus();
             });
             menuSearch?.addEventListener('input', () => {
-                const query = menuSearch.value.trim().toLocaleLowerCase('th');
+                const terms = menuSearch.value.trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
+                const query = terms.join(' ');
                 let visible = 0;
                 mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').forEach(card => {
-                    const matches = card.dataset.menuSearch.includes(query);
+                    const matches = terms.every(term => card.dataset.menuSearch.includes(term));
                     card.hidden = !matches;
                     if (matches) visible++;
                 });
