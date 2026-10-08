@@ -847,8 +847,8 @@
                     throw new Error(`Network response was not ok for sheet: ${sheetName}. Status: ${response.status}`);
                 }
                 const result = await response.json();
-                if (!result.success) {
-                    throw new Error(result.error);
+                if (!result || typeof result !== 'object' || result.success !== true || !Array.isArray(result.data)) {
+                    throw new Error('Invalid data response for sheet: ' + sheetName);
                 }
                 return result.data;
             } catch (error) {
@@ -859,6 +859,9 @@
         }
 
         function buildDataStructures(mainMenus, allSubMenus) {
+            if (!Array.isArray(mainMenus) || !Array.isArray(allSubMenus)) {
+                throw new TypeError('Menu data must be arrays');
+            }
             mainMenuData = mainMenus;
             subMenuData = {};
             
@@ -1026,7 +1029,7 @@
                 
                 if (!documentData[contentId] && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
                     const docs = await fetchData(docSheetName);
-                    if (docs.length > 0) {
+                    if (Array.isArray(docs) && docs.length > 0) {
                         // Re-organize fetched docs by their parent ID
                         docs.forEach(doc => {
                             if (!documentData[doc.parentSubMenuId]) {
