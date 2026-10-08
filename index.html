@@ -1251,6 +1251,7 @@
                         const favoriteKey = item.querySelector('.btn-favorite-document')?.dataset.favoriteKey;
                         const matches = matchesSearchTerms(item.dataset.documentSearch, query) &&
                             (!favoritesOnly?.checked || (!!favoriteKey && favoriteDocumentLinks.has(favoriteKey)));
+                        if (!matches && item.contains(document.activeElement)) documentSearch.focus();
                         item.hidden = !matches;
                         if (matches) visible++;
                     });
