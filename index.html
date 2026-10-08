@@ -805,6 +805,7 @@
                 documentData = Object.create(null);
             loadedDocumentSheets = new Set();
             pendingDocumentSheets.clear();
+            refreshingDocumentSheets.clear();
             favoriteDocumentLinks.clear();
                 mainMenuData = [];
                 subMenuData = Object.create(null);
@@ -1500,6 +1501,35 @@
                 setTimeout(schedule, 300);
             }
         }
+        // Explicit refresh keeps the in-memory catalog current without reloading PDFs.
+        // Fetch first and swap only after a successful response, preserving old data on failure.
+        const refreshingDocumentSheets = new Map();
+        async function refreshDocumentSheet(sheetName, parentMenuId, session = authSessionGeneration) {
+            if (refreshingDocumentSheets.has(sheetName)) return refreshingDocumentSheets.get(sheetName);
+            const task = (async () => {
+                // Let a background preload finish before requesting a fresh snapshot.
+                if (pendingDocumentSheets.has(sheetName)) {
+                    try { await pendingDocumentSheets.get(sheetName); } catch { /* refresh retries */ }
+                }
+                if (session !== authSessionGeneration) return false;
+                const docs = await fetchData(sheetName);
+                if (session !== authSessionGeneration) return false;
+                const childIds = new Set((subMenuData[parentMenuId] || []).map(item => item.subMenuId));
+                const replacement = Object.create(null);
+                for (const id of childIds) replacement[id] = [];
+                for (const doc of docs) {
+                    if (!doc || typeof doc !== 'object' || !childIds.has(doc.parentSubMenuId)) continue;
+                    replacement[doc.parentSubMenuId].push(doc);
+                }
+                for (const id of childIds) documentData[id] = replacement[id];
+                loadedDocumentSheets.add(sheetName);
+                return true;
+            })().finally(() => {
+                if (refreshingDocumentSheets.get(sheetName) === task) refreshingDocumentSheets.delete(sheetName);
+            });
+            refreshingDocumentSheets.set(sheetName, task);
+            return task;
+        }
         let latestNavigationRequest = 0;
         async function renderContent(contentId, isBackNavigation = false) {
             const navigationRequest = ++latestNavigationRequest;
@@ -1596,6 +1626,7 @@
                     if (navigationRequest !== latestNavigationRequest) return;
                 }
                 if (!documentData[contentId]) documentData[contentId] = [];
+                htmlContent += '<div class="mb-3 flex items-center gap-3 flex-wrap"><button id="refreshDocumentCatalog" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">↻ อัปเดตรายการเอกสาร</button><span id="refreshDocumentStatus" role="status" class="text-sm text-gray-600"></span></div>';
 
                 if (Array.isArray(documentData[contentId]) && documentData[contentId].length > 0) {
                     // Renders a list of documents
@@ -1633,6 +1664,27 @@
             if (contentId === 'reader-recent' || contentId === 'reader-later') {
                 document.getElementById('readerLibrarySearch')?.addEventListener('input', renderReaderWorkspace);
                 renderReaderWorkspace();
+            }
+
+            const refreshButton = document.getElementById('refreshDocumentCatalog');
+            if (refreshButton) {
+                refreshButton.addEventListener('click', async () => {
+                    const status = document.getElementById('refreshDocumentStatus');
+                    const parentMenuId = historyStack[0];
+                    const session = authSessionGeneration;
+                    refreshButton.disabled = true;
+                    status.textContent = 'กำลังอัปเดตรายการ...';
+                    try {
+                        const updated = await refreshDocumentSheet('docs_' + parentMenuId, parentMenuId, session);
+                        if (!updated || session !== authSessionGeneration || navigationRequest !== latestNavigationRequest) return;
+                        await renderContent(contentId, true);
+                        document.getElementById('refreshDocumentStatus').textContent = 'อัปเดตรายการล่าสุดแล้ว';
+                    } catch (error) {
+                        if (navigationRequest !== latestNavigationRequest) return;
+                        status.textContent = 'อัปเดตไม่สำเร็จ รายการเดิมยังใช้งานได้';
+                        refreshButton.disabled = false;
+                    }
+                });
             }
 
             // Attach event listener to back button
