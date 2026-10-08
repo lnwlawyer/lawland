@@ -796,6 +796,7 @@
                 historyStack = [];
                 documentData = Object.create(null);
             loadedDocumentSheets = new Set();
+            pendingDocumentSheets.clear();
             favoriteDocumentLinks.clear();
                 mainMenuData = [];
                 subMenuData = Object.create(null);
@@ -1367,6 +1368,26 @@
             }, 5000); // Hide after 5 seconds
         }
 
+        // Share concurrent requests for the same document sheet. Keep successful
+        // responses for sibling menus even when the user navigates away.
+        const pendingDocumentSheets = new Map();
+        function ensureDocumentSheet(sheetName, session = authSessionGeneration) {
+            if (loadedDocumentSheets.has(sheetName)) return Promise.resolve();
+            if (pendingDocumentSheets.has(sheetName)) return pendingDocumentSheets.get(sheetName);
+            const task = fetchData(sheetName).then(docs => {
+                if (session !== authSessionGeneration || loadedDocumentSheets.has(sheetName)) return;
+                loadedDocumentSheets.add(sheetName);
+                docs.forEach(doc => {
+                    if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
+                    if (!documentData[doc.parentSubMenuId]) documentData[doc.parentSubMenuId] = [];
+                    documentData[doc.parentSubMenuId].push(doc);
+                });
+            }).finally(() => {
+                if (pendingDocumentSheets.get(sheetName) === task) pendingDocumentSheets.delete(sheetName);
+            });
+            pendingDocumentSheets.set(sheetName, task);
+            return task;
+        }
         let latestNavigationRequest = 0;
         async function renderContent(contentId, isBackNavigation = false) {
             const navigationRequest = ++latestNavigationRequest;
@@ -1446,10 +1467,11 @@
                 const parentMenuId = historyStack[0];
                 const docSheetName = `docs_${parentMenuId}`;
                 
-                if (!loadedDocumentSheets.has(docSheetName) && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
-                    let docs;
+                if (!loadedDocumentSheets.has(docSheetName)) {
+                    // Show immediate feedback instead of leaving the previous menu frozen.
+                    mainContentDisplay.innerHTML = '<p role="status" class="p-4 text-gray-600">กำลังโหลดรายการเอกสาร...</p>';
                     try {
-                        docs = await fetchData(docSheetName);
+                        await ensureDocumentSheet(docSheetName);
                     } catch (error) {
                         if (navigationRequest !== latestNavigationRequest) return;
                         console.error('Failed to load document sheet.', error);
@@ -1458,19 +1480,6 @@
                         return;
                     }
                     if (navigationRequest !== latestNavigationRequest) return;
-                    // Cache each fetched sheet once, including empty results, to avoid
-                    // duplicate document entries when visiting sibling categories.
-                    if (!loadedDocumentSheets.has(docSheetName)) {
-                        loadedDocumentSheets.add(docSheetName);
-                        docs.forEach(doc => {
-                            if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
-                            if (!documentData[doc.parentSubMenuId]) {
-                                documentData[doc.parentSubMenuId] = [];
-                            }
-                            documentData[doc.parentSubMenuId].push(doc);
-                        });
-                    }
-                    if (!documentData[contentId]) documentData[contentId] = [];
                 }
 
                 if (Array.isArray(documentData[contentId]) && documentData[contentId].length > 0) {
