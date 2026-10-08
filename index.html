@@ -683,6 +683,7 @@
                 latestNavigationRequest++;
                 historyStack = [];
                 documentData = Object.create(null);
+            loadedDocumentSheets = new Set();
                 mainMenuData = [];
                 subMenuData = Object.create(null);
                 window.appInitialized = false;
@@ -712,6 +713,7 @@
             latestNavigationRequest++;
             historyStack = [];
             documentData = Object.create(null);
+            loadedDocumentSheets = new Set();
             mainMenuData = [];
             subMenuData = {};
             mainLayout.classList.add('hidden');
@@ -759,6 +761,7 @@
         let mainMenuData = [];
         let subMenuData = {};
         let documentData = Object.create(null);
+        let loadedDocumentSheets = new Set();
         const defaultImageUrl = "https://placehold.co/100x100/d1fae5/065f46?text=%3F";
 
         const ICONS = {
@@ -1038,18 +1041,22 @@
                 const parentMenuId = historyStack[0];
                 const docSheetName = `docs_${parentMenuId}`;
                 
-                if (!documentData[contentId] && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
+                if (!loadedDocumentSheets.has(docSheetName) && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
                     const docs = await fetchData(docSheetName);
                     if (navigationRequest !== latestNavigationRequest) return;
-                    // Cache empty results too, so revisiting an empty category does not refetch.
+                    // Cache each fetched sheet once, including empty results, to avoid
+                    // duplicate document entries when visiting sibling categories.
+                    if (!loadedDocumentSheets.has(docSheetName)) {
+                        loadedDocumentSheets.add(docSheetName);
+                        docs.forEach(doc => {
+                            if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
+                            if (!documentData[doc.parentSubMenuId]) {
+                                documentData[doc.parentSubMenuId] = [];
+                            }
+                            documentData[doc.parentSubMenuId].push(doc);
+                        });
+                    }
                     if (!documentData[contentId]) documentData[contentId] = [];
-                    docs.forEach(doc => {
-                        if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
-                        if (!documentData[doc.parentSubMenuId]) {
-                            documentData[doc.parentSubMenuId] = [];
-                        }
-                        documentData[doc.parentSubMenuId].push(doc);
-                    });
                 }
 
                 if (Array.isArray(documentData[contentId]) && documentData[contentId].length > 0) {
