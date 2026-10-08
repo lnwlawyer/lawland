@@ -392,6 +392,20 @@
         .reader-sidebar-group summary:focus-visible { outline: 2px solid #059669; }
         .reader-sidebar-group ul { margin: 0; padding: 0 0 6px; }
         .reader-sidebar-group li a { display: block; padding: 8px 16px; }
+        .reader-notes-compact { display: block; padding: 5px 12px; }
+        .reader-notes-compact summary { cursor: pointer; font-size: .88rem; font-weight: 600; }
+        .reader-notes-compact textarea { width: 100%; margin-top: 6px; min-height: 50px; }
+        .reader-notes-compact button { min-height: 32px; padding: 5px 10px; font-size: .82rem; }
+        .pdf-search-toolbar { display: flex; gap: 6px; align-items: center; }
+        .pdf-search-toolbar input { min-width: 0; flex: 1; }
+        .pdf-search-toolbar button, .pdf-search-source button { min-height: 32px; padding: 4px 9px; font-size: .82rem; border: 1px solid #94a3b8; border-radius: 6px; }
+        .pdf-search-source { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .78rem; margin-top: 6px; }
+        .pdf-search-source input { font-size: .76rem; width: min(100%, 200px); min-width: 0; padding: 2px; }
+        .pdf-search-hint { font-size: .78rem; color: #64748b; margin-bottom: 6px; }
+        .reader-research summary { font-size: .88rem; padding: 3px 0; }
+        .reader-research { padding: 5px 12px !important; }
+        .reader-research-body { padding: 6px 0; }
+        #pdfSearchStatus { font-size: .78rem; color: #475569; margin: 4px 0; }
         .pdf-search-results { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
         .pdf-search-results button { text-align: left; border: 1px solid #94a3b8; border-radius: 6px; padding: 8px; }
         #pdfLocalFile { max-width: 100%; }
@@ -675,8 +689,8 @@
             <p id="documentViewerHelp">หากเอกสารไม่แสดง อาจเป็นเพราะเว็บไซต์ต้นทางไม่อนุญาตให้ฝังเอกสาร กรุณาเลือก “เปิดในแท็บใหม่”</p>
             <div class="reader-frames"><iframe id="documentViewerFrame" title="เนื้อหาเอกสาร" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe><section id="readerComparePane" hidden><label for="readerCompareSearch">ค้นหาเอกสารสำหรับเปรียบเทียบจากคลัง</label><div class="reader-compare-search"><input id="readerCompareSearch" type="search" placeholder="พิมพ์ชื่อเอกสาร..." autocomplete="off"><button id="readerCompareSearchButton" type="button">ค้นหาทั้งคลัง</button></div><p id="readerCompareStatus" role="status"></p><label for="readerCompareSelect">ผลการค้นหา / เอกสารที่อ่านล่าสุด</label><select id="readerCompareSelect"></select><iframe id="readerCompareFrame" title="เอกสารเปรียบเทียบ" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe></section></div>
             <details class="reader-research"><summary>ค้นคว้าเอกสารและแหล่งอ้างอิง</summary><div class="reader-research-body"><label for="readerResearchQuery">ค้นหาชื่อเอกสารหรือคำสำคัญในคลัง</label><div class="reader-compare-search"><input id="readerResearchQuery" type="search" placeholder="เช่น มาตรา 74 หรือชื่อหนังสือเวียน"><button id="readerResearchSearch" type="button">ค้นหาทั้งคลัง</button></div><p id="readerResearchStatus" role="status"></p><div id="readerResearchResults"></div><p class="text-sm text-gray-600">ค้นหาจากชื่อเอกสารที่มีในคลัง ไม่ใช่ข้อความทุกหน้าใน PDF หากต้องการค้นหาภายในไฟล์ ให้ใช้เครื่องมือค้นหาของโปรแกรมแสดง PDF หรือเปิดในแท็บใหม่</p></div></details>
-            <details id="pdfTextSearch" class="reader-research"><summary>ค้นหาข้อความทุกหน้าใน PDF</summary><div class="reader-research-body"><p class="text-sm text-gray-600">ค้นหาได้จาก PDF ที่มีชั้นข้อความ โดยประมวลผลในเบราว์เซอร์ ไม่ส่งไฟล์ไปยังเซิร์ฟเวอร์ของ Lawland หากเว็บไซต์ต้นทางไม่อนุญาตให้ดาวน์โหลด ให้เลือกไฟล์ PDF จากเครื่องแทน</p><div class="reader-compare-search"><button id="pdfLoadFromLink" type="button">โหลด PDF จากลิงก์เอกสาร</button><label for="pdfLocalFile">หรือเลือกไฟล์ PDF จากเครื่อง</label><input id="pdfLocalFile" type="file" accept=".pdf,application/pdf"></div><div class="reader-compare-search"><label for="pdfSearchQuery">ข้อความที่ต้องการค้นหา</label><input id="pdfSearchQuery" type="search" placeholder="พิมพ์คำหรือข้อความใน PDF"><button id="pdfSearchButton" type="button" disabled>ค้นหาทุกหน้า</button><button id="pdfCancelSearch" type="button">ยกเลิก</button></div><p id="pdfSearchStatus" role="status" aria-live="polite">ยังไม่ได้โหลด PDF</p><div id="pdfSearchResults" class="pdf-search-results"></div></div></details>
-            <section class="reader-notes"><label for="readerNote">บันทึกส่วนตัวเกี่ยวกับเอกสาร</label><textarea id="readerNote" rows="2" maxlength="3000" placeholder="พิมพ์บันทึกส่วนตัว (เก็บไว้ในเบราว์เซอร์เครื่องนี้)"></textarea><button id="readerSaveNote" type="button">บันทึกข้อความ</button><span id="readerNoteStatus" role="status"></span></section>
+            <details id="pdfTextSearch" class="reader-research"><summary>ค้นหาข้อความทุกหน้าใน PDF</summary><div class="reader-research-body"><p class="pdf-search-hint">พิมพ์คำแล้วกดค้นหา ระบบจะลองเปิด PDF จากลิงก์ให้อัตโนมัติ หากต้นทางปิดกั้น ให้เลือก PDF จากเครื่อง (รองรับ PDF ที่มีชั้นข้อความ)</p><div class="pdf-search-toolbar"><label class="sr-only" for="pdfSearchQuery">ข้อความที่ต้องการค้นหา</label><input id="pdfSearchQuery" type="search" placeholder="ค้นหาคำใน PDF ทุกหน้า"><button id="pdfSearchButton" type="button">ค้นหา</button><button id="pdfCancelSearch" type="button" hidden>ยกเลิก</button></div><div class="pdf-search-source"><button id="pdfLoadFromLink" type="button">โหลดจากลิงก์</button><label for="pdfLocalFile">หรือเลือก PDF จากเครื่อง</label><input id="pdfLocalFile" type="file" accept=".pdf,application/pdf"></div><p id="pdfSearchStatus" role="status" aria-live="polite">ยังไม่ได้โหลด PDF</p><div id="pdfSearchResults" class="pdf-search-results"></div></div></details>
+            <details class="reader-notes reader-notes-compact"><summary>บันทึกส่วนตัวเกี่ยวกับเอกสาร</summary><label class="sr-only" for="readerNote">บันทึกส่วนตัวเกี่ยวกับเอกสาร</label><textarea id="readerNote" rows="2" maxlength="3000" placeholder="พิมพ์บันทึกส่วนตัว (เก็บไว้ในเบราว์เซอร์เครื่องนี้)"></textarea><button id="readerSaveNote" type="button">บันทึกข้อความ</button><span id="readerNoteStatus" role="status"></span></details>
         </div>
     </dialog>
 
@@ -1255,7 +1269,8 @@
             pdfSearchDocument = null;
             pdfSearchPages = [];
             document.getElementById('pdfSearchResults').replaceChildren();
-            document.getElementById('pdfSearchButton').disabled = true;
+            document.getElementById('pdfSearchButton').disabled = false;
+            document.getElementById('pdfCancelSearch').hidden = true;
             document.getElementById('pdfLocalFile').value = '';
             if (pdfSearchObjectUrl) URL.revokeObjectURL(pdfSearchObjectUrl);
             pdfSearchObjectUrl = '';
@@ -1287,7 +1302,7 @@
         }
         async function loadPdfFromLink() {
             const link = safeExternalUrl(currentReaderDocument?.url);
-            if (!link) { pdfStatus('ไม่พบลิงก์เอกสาร'); return; }
+            if (!link) { pdfStatus('ไม่พบลิงก์เอกสาร'); return false; }
             const generation = ++pdfSearchGeneration;
             document.getElementById('pdfSearchButton').disabled = true;
             pdfStatus('กำลังดาวน์โหลด PDF จากต้นทาง...');
@@ -1317,8 +1332,10 @@
                 } finally { clearTimeout(timeout); }
                 if (generation !== pdfSearchGeneration || !documentViewer.open) return;
                 await loadPdfSearchData(data.buffer, link);
+                return Boolean(pdfSearchDocument);
             } catch (error) {
-                if (generation === pdfSearchGeneration) pdfStatus('ไม่สามารถโหลด PDF จากลิงก์นี้ได้ (อาจติดข้อจำกัด CORS หรือสิทธิ์เข้าถึง) กรุณาเลือกไฟล์ PDF จากเครื่อง: ' + error.message);
+                if (generation === pdfSearchGeneration) pdfStatus('โหลดจากลิงก์ไม่สำเร็จ (อาจติด CORS หรือสิทธิ์เข้าถึง) กรุณาเลือกไฟล์ PDF จากเครื่อง: ' + error.message);
+                return false;
             }
         }
         async function loadPdfLocalFile(file) {
@@ -1336,6 +1353,12 @@
             }
         }
         async function searchPdfAllPages() {
+            const queryInput = document.getElementById('pdfSearchQuery').value.trim();
+            if (!queryInput) { pdfStatus('กรุณาพิมพ์คำค้นหา'); return; }
+            if (!pdfSearchDocument) {
+                const loaded = await loadPdfFromLink();
+                if (!loaded) return;
+            }
             const doc = pdfSearchDocument;
             const query = document.getElementById('pdfSearchQuery').value.trim().toLocaleLowerCase('th');
             if (!doc || !query) { pdfStatus('กรุณาโหลด PDF และพิมพ์คำค้นหา'); return; }
@@ -1345,6 +1368,7 @@
             let found = 0;
             let pagesWithText = 0;
             document.getElementById('pdfSearchButton').disabled = true;
+            document.getElementById('pdfCancelSearch').hidden = false;
             try {
                 for (let number = 1; number <= doc.numPages; number++) {
                     if (generation !== pdfSearchGeneration || !documentViewer.open) return;
@@ -1382,6 +1406,7 @@
             } catch (error) {
                 if (generation === pdfSearchGeneration) pdfStatus('ค้นหาไม่สำเร็จ: ' + error.message);
             } finally {
+                document.getElementById('pdfCancelSearch').hidden = true;
                 if (generation === pdfSearchGeneration && pdfSearchDocument) document.getElementById('pdfSearchButton').disabled = false;
             }
         }
@@ -1393,7 +1418,8 @@
         });
         document.getElementById('pdfCancelSearch').addEventListener('click', () => {
             pdfSearchGeneration++;
-            if (pdfSearchDocument) document.getElementById('pdfSearchButton').disabled = false;
+            document.getElementById('pdfSearchButton').disabled = false;
+            document.getElementById('pdfCancelSearch').hidden = true;
             pdfStatus('ยกเลิกการค้นหาแล้ว');
         });
 
