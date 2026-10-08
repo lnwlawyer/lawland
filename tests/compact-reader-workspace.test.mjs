@@ -1,18 +1,1 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-test('reader workspace is collapsed by default and preserves open state on refresh',()=>{
- assert.ok(html.includes("const wasOpen = root.querySelector('details')?.open || false"));
- assert.ok(html.includes("root.innerHTML = '<details' + (wasOpen ? ' open' : '')"));
- assert.ok(html.includes('<summary>คลังอ่านส่วนตัว'));
-});
-test('reader lists are bounded and independently scrollable',()=>{
- assert.ok(html.includes('#readerWorkspace .reader-workspace-list'));
- assert.ok(html.includes('max-height: 144px; overflow-y: auto'));
- assert.ok(html.includes('text-overflow: ellipsis'));
-});
-test('reader controls still open validated saved documents',()=>{
- assert.ok(html.includes("button[data-reader-kind]"));
- assert.ok(html.includes('safeExternalUrl(entry.url)) openDocumentViewer'));
-});
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');test('reader library is navigated from sidebar, not top of content',()=>{assert.ok(html.includes('class="reader-sidebar-group"'));assert.ok(html.includes('data-content-id="reader-recent"'));assert.ok(html.includes('data-content-id="reader-later"'));assert.ok(!html.includes("mainContentDisplay.innerHTML = '<section id=\"readerWorkspace\"></section>'"));});test('reader lists offer search, read and remove',()=>{assert.ok(html.includes('id="readerLibrarySearch"'));assert.ok(html.includes('matchesSearchTerms(entry.name, query)'));assert.ok(html.includes("read.textContent = 'อ่าน'"));assert.ok(html.includes("remove.textContent = 'นำออกจากรายการ'"));});test('existing browser storage key is preserved',()=>{assert.ok(html.includes("lawland-reader-workspace-v1"));assert.ok(html.includes('readReaderState()'));assert.ok(html.includes('writeReaderState(updated)'));});
