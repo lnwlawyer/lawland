@@ -1165,6 +1165,7 @@
                 mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').forEach(card => {
                     const matches = matchesSearchTerms(card.dataset.menuSearch, query);
                     card.hidden = !matches;
+                    card.tabIndex = matches ? 0 : -1;
                     if (matches) visible++;
                 });
                 document.getElementById('menuSearchEmpty').classList.toggle('hidden', visible !== 0);
