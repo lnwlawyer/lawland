@@ -396,6 +396,13 @@
         .reader-notes-compact summary { cursor: pointer; font-size: .88rem; font-weight: 600; }
         .reader-notes-compact textarea { width: 100%; margin-top: 6px; min-height: 50px; }
         .reader-notes-compact button { min-height: 32px; padding: 5px 10px; font-size: .82rem; }
+        .global-search { max-width: 850px; }
+        .global-search label { display: block; margin-bottom: 5px; font-weight: 600; }
+        .global-search input { width: 100%; max-width: 500px; padding: 8px 10px; border: 1px solid #94a3b8; border-radius: 6px; }
+        #globalDocumentCount { margin: 8px 0; color: #475569; font-size: .85rem; }
+        .global-search-row { border-bottom: 1px solid #e2e8f0; }
+        .global-search-open { width: 100%; padding: 9px 5px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+        .global-search-open small { color: #64748b; font-size: .76rem; }
         .reader-research summary { font-size: .88rem; padding: 3px 0; }
         .reader-research { padding: 5px 12px !important; }
         .reader-research-body { padding: 6px 0; }
@@ -1320,6 +1327,68 @@
             document.getElementById('documentViewerExternal').removeAttribute('href');
         });
 
+        // Search document metadata across every already-loaded sheet. Google Drive
+        // PDF contents are not available for cross-origin full-text indexing.
+        function renderGlobalDocumentSearch() {
+            const input = document.getElementById('globalDocumentSearch');
+            const list = document.getElementById('globalDocumentResults');
+            const count = document.getElementById('globalDocumentCount');
+            if (!input || !list || !count) return;
+            const query = input.value.trim();
+            const totalSheets = new Set(mainMenuData.map(item => item.menuId)
+                .filter(id => typeof id === 'string' && id && id !== 'settings' && id !== 'about')).size;
+            const readySheets = [...loadedDocumentSheets].filter(name => name.startsWith('docs_')).length;
+            list.replaceChildren();
+            if (!query) {
+                count.textContent = 'พิมพ์ชื่อเอกสารเพื่อค้นหาทุกหมวด · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด';
+                return;
+            }
+            const results = [];
+            const seen = new Set();
+            for (const [subId, docs] of Object.entries(documentData)) {
+                const sub = Object.values(subMenuData).flat().find(item => item.subMenuId === subId);
+                for (const doc of docs) {
+                    if (!matchesSearchTerms(doc.docName, query)) continue;
+                    const url = safeExternalUrl(doc.docUrl);
+                    if (!url) continue;
+                    const key = subId + '\\u0000' + url;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    results.push({ name: String(doc.docName || 'เอกสาร'), url, category: sub?.subMenuTitle || subId });
+                }
+            }
+            count.textContent = 'พบ ' + results.length + ' รายการ · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด' +
+                (readySheets < totalSheets ? ' (ผลการค้นหายังไม่ครบทุกหมวด)' : '');
+            if (!results.length) {
+                const p = document.createElement('p');
+                p.textContent = readySheets < totalSheets ? 'ยังไม่พบเอกสาร กำลังโหลดหมวดที่เหลือ...' : 'ไม่พบเอกสารที่ตรงกับคำค้นหา';
+                list.append(p);
+                return;
+            }
+            const fragment = document.createDocumentFragment();
+            results.slice(0, 150).forEach(entry => {
+                const row = document.createElement('div');
+                row.className = 'global-search-row';
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'global-search-open';
+                const name = document.createElement('span');
+                name.textContent = entry.name;
+                const category = document.createElement('small');
+                category.textContent = entry.category;
+                button.append(name, category);
+                button.addEventListener('click', () => openDocumentViewer(entry.name, entry.url));
+                row.append(button);
+                fragment.append(row);
+            });
+            list.append(fragment);
+            if (results.length > 150) {
+                const more = document.createElement('p');
+                more.textContent = 'แสดง 150 รายการแรก กรุณาระบุคำค้นหาให้เฉพาะเจาะจงขึ้น';
+                list.append(more);
+            }
+        }
+
         function renderSidebar() {
             const mainMenusToRender = mainMenuData.filter(item => item.menuId !== 'settings' && item.menuId !== 'about');
             const staticMenus = mainMenuData.filter(item => item.menuId === 'settings' || item.menuId === 'about');
@@ -1330,6 +1399,7 @@
             });
             mainNavHtml += '</ul>';
             mainNavHtml += '<details class="reader-sidebar-group"><summary>คลังอ่านส่วนตัว</summary><ul>' +
+                '<li><a href="#" data-content-id="global-search">ค้นหาทุกหมวด</a></li>' +
                 '<li><a href="#" data-content-id="reader-recent">อ่านล่าสุด</a></li>' +
                 '<li><a href="#" data-content-id="reader-later">อ่านภายหลัง</a></li></ul></details>';
             
@@ -1340,7 +1410,7 @@
             bottomNavHtml += '</ul></div>';
             
             sidebarNavContainer.innerHTML = mainNavHtml + bottomNavHtml;
-            if (historyStack[0] === 'reader-recent' || historyStack[0] === 'reader-later') {
+            if (historyStack[0] === 'global-search' || historyStack[0] === 'reader-recent' || historyStack[0] === 'reader-later') {
                 const group = sidebarNavContainer.querySelector('.reader-sidebar-group');
                 if (group) group.open = true;
             }
@@ -1351,7 +1421,7 @@
                     e.preventDefault();
                     const contentId = this.dataset.contentId;
                     historyStack = [contentId]; // Reset history for new top-level section
-                    if (contentId === 'reader-recent' || contentId === 'reader-later') this.closest('details').open = true;
+                    if (contentId === 'global-search' || contentId === 'reader-recent' || contentId === 'reader-later') this.closest('details').open = true;
                     renderContent(contentId);
                     
                     // Close sidebar on mobile after selection
@@ -1385,6 +1455,7 @@
                     if (!documentData[doc.parentSubMenuId]) documentData[doc.parentSubMenuId] = [];
                     documentData[doc.parentSubMenuId].push(doc);
                 });
+                if (historyStack[historyStack.length - 1] === 'global-search') renderGlobalDocumentSearch();
             }).finally(() => {
                 if (pendingDocumentSheets.get(sheetName) === task) pendingDocumentSheets.delete(sheetName);
             });
@@ -1442,7 +1513,7 @@
             const currentMainMenuItem = mainMenuData.find(m => m.menuId === contentId);
             const allSubMenus = Object.values(subMenuData).flat();
             const currentSubMenuItem = allSubMenus.find(sm => sm.subMenuId === contentId);
-            const title = contentId === 'reader-recent' ? 'อ่านล่าสุด' : contentId === 'reader-later' ? 'อ่านภายหลัง' : currentMainMenuItem?.menuTitle || currentSubMenuItem?.subMenuTitle || contentId;
+            const title = contentId === 'global-search' ? 'ค้นหาเอกสารทุกหมวด' : contentId === 'reader-recent' ? 'อ่านล่าสุด' : contentId === 'reader-later' ? 'อ่านภายหลัง' : currentMainMenuItem?.menuTitle || currentSubMenuItem?.subMenuTitle || contentId;
             mainContentTitle.textContent = title;
             updateSidebarActiveLink();
 
@@ -1454,7 +1525,9 @@
             }
 
             // Determine what to render
-            if (contentId === 'reader-recent' || contentId === 'reader-later') {
+            if (contentId === 'global-search') {
+                htmlContent += '<div class="global-search"><label for="globalDocumentSearch">ค้นหาจากชื่อเอกสารทุกหมวด</label><input id="globalDocumentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." aria-describedby="globalDocumentCount"><p id="globalDocumentCount" role="status"></p><div id="globalDocumentResults"></div></div>';
+            } else if (contentId === 'reader-recent' || contentId === 'reader-later') {
                 htmlContent += '<p class="text-sm text-gray-600 mb-4">รายการนี้เก็บในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p><label for="readerLibrarySearch">ค้นหาเอกสารในรายการ</label><input id="readerLibrarySearch" type="search" placeholder="พิมพ์ชื่อเอกสาร..." autocomplete="off"><p id="readerLibraryCount" role="status"></p><div id="readerLibraryList"></div>';
             } else if (contentId === 'settings') {
                  htmlContent += `
@@ -1553,6 +1626,10 @@
             }
             if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
+            if (contentId === 'global-search') {
+                document.getElementById('globalDocumentSearch')?.addEventListener('input', renderGlobalDocumentSearch);
+                renderGlobalDocumentSearch();
+            }
             if (contentId === 'reader-recent' || contentId === 'reader-later') {
                 document.getElementById('readerLibrarySearch')?.addEventListener('input', renderReaderWorkspace);
                 renderReaderWorkspace();
