@@ -695,6 +695,7 @@
                 historyStack = [];
                 documentData = Object.create(null);
             loadedDocumentSheets = new Set();
+            favoriteDocumentLinks.clear();
                 mainMenuData = [];
                 subMenuData = Object.create(null);
                 window.appInitialized = false;
@@ -725,6 +726,7 @@
             historyStack = [];
             documentData = Object.create(null);
             loadedDocumentSheets = new Set();
+            favoriteDocumentLinks.clear();
             mainMenuData = [];
             subMenuData = {};
             mainLayout.classList.add('hidden');
@@ -774,6 +776,7 @@
         let documentData = Object.create(null);
         let loadedDocumentSheets = new Set();
         let documentSearchShortcutHandler = null;
+        const favoriteDocumentLinks = new Set();
         const defaultImageUrl = "https://placehold.co/100x100/d1fae5/065f46?text=%3F";
 
         const ICONS = {
@@ -1076,6 +1079,7 @@
                     htmlContent += `<h3 class="text-xl font-semibold text-gray-700 mb-5">รายการเอกสารสำหรับ ${escapeHtml(title)}</h3>`;
                     htmlContent += `<p id="documentCount" class="text-sm text-gray-600 mb-3" role="status">เอกสารทั้งหมด ${documentData[contentId].length} รายการ</p>`;
                     htmlContent += `<div class="mb-4"><label for="documentSort" class="block text-sm font-semibold text-gray-700 mb-2">เรียงลำดับเอกสาร</label><select id="documentSort" class="w-full p-3 border border-gray-300 rounded-lg"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></div>`;
+                    htmlContent += `<div class="mb-3"><label class="inline-flex items-center gap-2"><input id="favoritesOnly" type="checkbox"> แสดงเฉพาะรายการโปรด</label></div>`;
                     htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
                     documentData[contentId].forEach((doc, originalIndex) => {
@@ -1087,6 +1091,7 @@
                                     <span>อ่าน</span>
                                 </button>
                                 <button type="button" class="btn-copy-document" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" aria-label="คัดลอกลิงก์เอกสาร ${escapeHtml(doc.docName)}">คัดลอกลิงก์</button>
+                                <button type="button" class="btn-favorite-document" data-favorite-key="${escapeHtml(safeExternalUrl(doc.docUrl))}" aria-pressed="false" aria-label="เพิ่มเอกสาร ${escapeHtml(doc.docName)} ในรายการโปรด">☆ รายการโปรด</button>
                             </div>`;
                     });
                     htmlContent += `</div><p id="documentSearchEmpty" class="text-gray-600 mt-4 hidden" role="status">ไม่พบเอกสารที่ตรงกับคำค้นหา</p>`;
@@ -1144,6 +1149,29 @@
                 document.addEventListener('keydown', documentSearchShortcutHandler);
             }
 
+            // Favorites are in-memory only: no account data is persisted or shared.
+            const favoriteButtons = [...mainContentDisplay.querySelectorAll('.btn-favorite-document')];
+            const favoritesOnly = document.getElementById('favoritesOnly');
+            const refreshFavorites = () => {
+                favoriteButtons.forEach(button => {
+                    const selected = !!button.dataset.favoriteKey && favoriteDocumentLinks.has(button.dataset.favoriteKey);
+                    button.setAttribute('aria-pressed', String(selected));
+                    button.textContent = selected ? '★ รายการโปรด' : '☆ รายการโปรด';
+                });
+                documentSearch?.dispatchEvent(new Event('input'));
+            };
+            favoriteButtons.forEach(button => button.addEventListener('click', () => {
+                const key = button.dataset.favoriteKey;
+                if (!key) {
+                    showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
+                    return;
+                }
+                if (favoriteDocumentLinks.has(key)) favoriteDocumentLinks.delete(key);
+                else favoriteDocumentLinks.add(key);
+                refreshFavorites();
+            }));
+            favoritesOnly?.addEventListener('change', refreshFavorites);
+
             // Search only the currently rendered category; no network requests.
             const documentSearch = document.getElementById('documentSearch');
             if (documentSearch) {
@@ -1151,7 +1179,9 @@
                     const query = documentSearch.value.trim().toLocaleLowerCase('th');
                     let visible = 0;
                     mainContentDisplay.querySelectorAll('#documentList .document-item').forEach(item => {
-                        const matches = item.dataset.documentSearch.includes(query);
+                        const favoriteKey = item.querySelector('.btn-favorite-document')?.dataset.favoriteKey;
+                        const matches = item.dataset.documentSearch.includes(query) &&
+                            (!favoritesOnly?.checked || (!!favoriteKey && favoriteDocumentLinks.has(favoriteKey)));
                         item.hidden = !matches;
                         if (matches) visible++;
                     });
