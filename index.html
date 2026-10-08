@@ -375,6 +375,17 @@
                 flex: 1 1 auto;
             }
         }
+        .reader-frames { display: flex; flex: 1; min-height: 0; gap: 8px; }
+        .reader-frames > iframe, #readerComparePane { flex: 1; min-width: 0; }
+        #readerComparePane:not([hidden]) { display: flex; flex-direction: column; gap: 6px; }
+        #readerComparePane iframe { flex: 1; width: 100%; border: 0; }
+        #readerComparePane select { max-width: 100%; padding: 8px; }
+        .reader-notes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 16px; border-top: 1px solid #cbd5e1; }
+        .reader-notes textarea { flex: 1; min-width: 160px; padding: 6px; border: 1px solid #94a3b8; border-radius: 6px; }
+        .reader-notes button { padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
+        #readerWorkspace { margin: 0 0 16px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+        #readerWorkspace button { margin: 4px; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
+        @media (max-width: 640px) { .reader-frames:has(#readerComparePane:not([hidden])) { flex-direction: column; } }
         .document-viewer { width: min(98vw, 1400px); max-width: none; height: 94dvh; max-height: 94dvh; padding: 0; border: 1px solid #cbd5e1; border-radius: 12px; }
         .document-viewer::backdrop { background: rgba(15, 23, 42, .75); }
         .document-viewer-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
@@ -628,11 +639,14 @@
                 <h2 id="documentViewerTitle">อ่านเอกสาร</h2>
                 <div class="document-viewer-actions">
                     <a id="documentViewerExternal" target="_blank" rel="noopener noreferrer">เปิดในแท็บใหม่</a>
+                    <button id="readerSaveLater" type="button">อ่านภายหลัง</button>
+                    <button id="readerCompare" type="button">เทียบเอกสาร</button>
                     <button id="documentViewerClose" type="button">ปิดเอกสาร</button>
                 </div>
             </header>
             <p id="documentViewerHelp">หากเอกสารไม่แสดง อาจเป็นเพราะเว็บไซต์ต้นทางไม่อนุญาตให้ฝังเอกสาร กรุณาเลือก “เปิดในแท็บใหม่”</p>
-            <iframe id="documentViewerFrame" title="เนื้อหาเอกสาร" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>
+            <div class="reader-frames"><iframe id="documentViewerFrame" title="เนื้อหาเอกสาร" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe><section id="readerComparePane" hidden><label for="readerCompareSelect">เลือกเอกสารสำหรับเปรียบเทียบ</label><select id="readerCompareSelect"></select><iframe id="readerCompareFrame" title="เอกสารเปรียบเทียบ" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe></section></div>
+            <section class="reader-notes"><label for="readerNote">บันทึกส่วนตัวเกี่ยวกับเอกสาร</label><textarea id="readerNote" rows="2" maxlength="3000" placeholder="พิมพ์บันทึกส่วนตัว (เก็บไว้ในเบราว์เซอร์เครื่องนี้)"></textarea><button id="readerSaveNote" type="button">บันทึกข้อความ</button><span id="readerNoteStatus" role="status"></span></section>
         </div>
     </dialog>
 
@@ -984,6 +998,68 @@
             return safeUrl;
         }
 
+        const readerStorageKey = 'lawland-reader-workspace-v1';
+        let currentReaderDocument = null;
+        function readReaderState() {
+            try {
+                const state = JSON.parse(localStorage.getItem(readerStorageKey) || '{}');
+                return {
+                    recent: Array.isArray(state.recent) ? state.recent.slice(0, 12) : [],
+                    later: Array.isArray(state.later) ? state.later.slice(0, 30) : [],
+                    notes: state.notes && typeof state.notes === 'object' && !Array.isArray(state.notes) ? state.notes : {}
+                };
+            } catch { return { recent: [], later: [], notes: {} }; }
+        }
+        function writeReaderState(state) {
+            try { localStorage.setItem(readerStorageKey, JSON.stringify(state)); return true; }
+            catch { return false; }
+        }
+        function readerEntry(name, link) {
+            const url = safeExternalUrl(link);
+            return url ? { name: String(name || 'เอกสาร').slice(0, 180), url } : null;
+        }
+        function updateReaderHistory(name, link) {
+            const entry = readerEntry(name, link);
+            if (!entry) return;
+            const state = readReaderState();
+            state.recent = [entry, ...state.recent.filter(item => item.url !== entry.url)].slice(0, 12);
+            writeReaderState(state);
+        }
+        function renderReaderWorkspace() {
+            const root = document.getElementById('readerWorkspace');
+            if (!root) return;
+            const state = readReaderState();
+            const renderEntries = (entries, prefix) => entries.length
+                ? entries.map((entry, i) => '<button type="button" data-reader-kind="' + prefix + '" data-reader-index="' + i + '">' + escapeHtml(entry.name) + '</button>').join('')
+                : '<span>ยังไม่มีรายการ</span>';
+            root.innerHTML = '<h3 class="font-semibold">พื้นที่อ่านเอกสารส่วนตัว</h3><p class="text-sm text-gray-600">ข้อมูลบันทึกไว้ในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p><h4>อ่านล่าสุด</h4>' +
+                renderEntries(state.recent, 'recent') + '<h4>อ่านภายหลัง</h4>' + renderEntries(state.later, 'later');
+            root.querySelectorAll('button[data-reader-kind]').forEach(button => button.addEventListener('click', () => {
+                const latest = readReaderState();
+                const entry = latest[button.dataset.readerKind]?.[Number(button.dataset.readerIndex)];
+                if (entry && safeExternalUrl(entry.url)) openDocumentViewer(entry.name, entry.url);
+            }));
+        }
+        function updateReaderSaveButton() {
+            const saved = currentReaderDocument && readReaderState().later.some(item => item.url === currentReaderDocument.url);
+            document.getElementById('readerSaveLater').textContent = saved ? 'นำออกจากอ่านภายหลัง' : 'อ่านภายหลัง';
+        }
+        function populateReaderCompare() {
+            const select = document.getElementById('readerCompareSelect');
+            const entries = readReaderState().recent.filter(item => safeExternalUrl(item.url) && item.url !== currentReaderDocument?.url);
+            select.replaceChildren();
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = entries.length ? 'เลือกจากเอกสารที่อ่านล่าสุด' : 'เปิดอ่านเอกสารอื่นก่อนเพื่อเปรียบเทียบ';
+            select.append(placeholder);
+            entries.forEach(entry => {
+                const option = document.createElement('option');
+                option.value = entry.url;
+                option.textContent = entry.name;
+                select.append(option);
+            });
+        }
+
         function openDocumentViewer(name, link) {
             const safeUrl = safeExternalUrl(link);
             if (!safeUrl) {
@@ -994,14 +1070,54 @@
             const frame = document.getElementById('documentViewerFrame');
             document.getElementById('documentViewerTitle').textContent = name || 'อ่านเอกสาร';
             document.getElementById('documentViewerExternal').href = safeUrl;
+            currentReaderDocument = readerEntry(name, safeUrl);
+            updateReaderHistory(name, safeUrl);
+            updateReaderSaveButton();
+            document.getElementById('readerNote').value = String(readReaderState().notes[safeUrl] || '');
+            document.getElementById('readerNoteStatus').textContent = '';
+            document.getElementById('readerComparePane').hidden = true;
+            document.getElementById('readerCompareFrame').removeAttribute('src');
+            populateReaderCompare();
             frame.src = documentEmbedUrl(safeUrl);
             dialog.showModal();
+            renderReaderWorkspace();
         }
 
         const documentViewer = document.getElementById('documentViewer');
         document.getElementById('documentViewerClose').addEventListener('click', () => documentViewer.close());
+        document.getElementById('readerSaveLater').addEventListener('click', () => {
+            if (!currentReaderDocument) return;
+            const state = readReaderState();
+            const existing = state.later.some(item => item.url === currentReaderDocument.url);
+            state.later = existing ? state.later.filter(item => item.url !== currentReaderDocument.url) : [currentReaderDocument, ...state.later].slice(0, 30);
+            if (!writeReaderState(state)) document.getElementById('readerNoteStatus').textContent = 'ไม่สามารถบันทึกในเบราว์เซอร์ได้';
+            updateReaderSaveButton();
+            renderReaderWorkspace();
+        });
+        document.getElementById('readerCompare').addEventListener('click', () => {
+            const pane = document.getElementById('readerComparePane');
+            pane.hidden = !pane.hidden;
+            if (pane.hidden) document.getElementById('readerCompareFrame').removeAttribute('src');
+            else populateReaderCompare();
+        });
+        document.getElementById('readerCompareSelect').addEventListener('change', event => {
+            const url = safeExternalUrl(event.target.value);
+            const frame = document.getElementById('readerCompareFrame');
+            if (url) frame.src = documentEmbedUrl(url);
+            else frame.removeAttribute('src');
+        });
+        document.getElementById('readerSaveNote').addEventListener('click', () => {
+            if (!currentReaderDocument) return;
+            const state = readReaderState();
+            const value = document.getElementById('readerNote').value.slice(0, 3000);
+            if (value.trim()) state.notes[currentReaderDocument.url] = value;
+            else delete state.notes[currentReaderDocument.url];
+            document.getElementById('readerNoteStatus').textContent = writeReaderState(state) ? 'บันทึกแล้ว' : 'ไม่สามารถบันทึกในเบราว์เซอร์ได้';
+        });
         documentViewer.addEventListener('close', () => {
             document.getElementById('documentViewerFrame').removeAttribute('src');
+            document.getElementById('readerCompareFrame').removeAttribute('src');
+            currentReaderDocument = null;
             document.getElementById('documentViewerExternal').removeAttribute('href');
         });
 
@@ -1180,7 +1296,8 @@
                 }
             }
             if (navigationRequest !== latestNavigationRequest) return;
-            mainContentDisplay.innerHTML = htmlContent;
+            mainContentDisplay.innerHTML = '<section id="readerWorkspace"></section>' + htmlContent;
+            renderReaderWorkspace();
 
             // Attach event listener to back button
             const backButton = document.getElementById('backButton');
