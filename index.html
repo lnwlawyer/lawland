@@ -1160,11 +1160,10 @@
                 menuSearch.focus();
             });
             menuSearch?.addEventListener('input', () => {
-                const terms = menuSearch.value.trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
-                const query = terms.join(' ');
+                const query = menuSearch.value.trim();
                 let visible = 0;
                 mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').forEach(card => {
-                    const matches = terms.every(term => card.dataset.menuSearch.includes(term));
+                    const matches = matchesSearchTerms(card.dataset.menuSearch, query);
                     card.hidden = !matches;
                     if (matches) visible++;
                 });
@@ -1244,12 +1243,11 @@
                     documentSearch.focus();
                 });
                 documentSearch.addEventListener('input', () => {
-                    const terms = documentSearch.value.trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
-                    const query = terms.join(' ');
+                    const query = documentSearch.value.trim();
                     let visible = 0;
                     mainContentDisplay.querySelectorAll('#documentList .document-item').forEach(item => {
                         const favoriteKey = item.querySelector('.btn-favorite-document')?.dataset.favoriteKey;
-                        const matches = terms.every(term => item.dataset.documentSearch.includes(term)) &&
+                        const matches = matchesSearchTerms(item.dataset.documentSearch, query) &&
                             (!favoritesOnly?.checked || (!!favoriteKey && favoriteDocumentLinks.has(favoriteKey)));
                         item.hidden = !matches;
                         if (matches) visible++;
@@ -1327,6 +1325,13 @@
                 });
                 updateActiveThemeButton();
             }
+        }
+
+        // Pure search predicate shared by menu cards and document titles.
+        function matchesSearchTerms(source, query) {
+            const haystack = String(source ?? '').toLocaleLowerCase('th');
+            const terms = String(query ?? '').trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
+            return terms.every(term => haystack.includes(term));
         }
 
         function updateSidebarActiveLink() {
