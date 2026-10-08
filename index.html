@@ -392,6 +392,12 @@
         .reader-sidebar-group summary:focus-visible { outline: 2px solid #059669; }
         .reader-sidebar-group ul { margin: 0; padding: 0 0 6px; }
         .reader-sidebar-group li a { display: block; padding: 8px 16px; }
+        .reader-research { border-top: 1px solid #cbd5e1; padding: 8px 14px; }
+        .reader-research summary { cursor: pointer; font-weight: 600; }
+        .reader-research-body { padding: 8px 0; }
+        .reader-research-body input { flex: 1; min-width: 160px; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
+        #readerResearchResults { max-height: 130px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 6px; padding: 5px 0; }
+        #readerResearchResults button { border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 8px; text-align: left; }
         .reader-library-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px; border-bottom: 1px solid #e2e8f0; }
         .reader-library-row span { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
         .reader-library-row button { padding: 8px 12px; border: 1px solid #94a3b8; border-radius: 6px; cursor: pointer; }
@@ -665,6 +671,7 @@
             </header>
             <p id="documentViewerHelp">หากเอกสารไม่แสดง อาจเป็นเพราะเว็บไซต์ต้นทางไม่อนุญาตให้ฝังเอกสาร กรุณาเลือก “เปิดในแท็บใหม่”</p>
             <div class="reader-frames"><iframe id="documentViewerFrame" title="เนื้อหาเอกสาร" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe><section id="readerComparePane" hidden><label for="readerCompareSearch">ค้นหาเอกสารสำหรับเปรียบเทียบจากคลัง</label><div class="reader-compare-search"><input id="readerCompareSearch" type="search" placeholder="พิมพ์ชื่อเอกสาร..." autocomplete="off"><button id="readerCompareSearchButton" type="button">ค้นหาทั้งคลัง</button></div><p id="readerCompareStatus" role="status"></p><label for="readerCompareSelect">ผลการค้นหา / เอกสารที่อ่านล่าสุด</label><select id="readerCompareSelect"></select><iframe id="readerCompareFrame" title="เอกสารเปรียบเทียบ" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe></section></div>
+            <details class="reader-research"><summary>ค้นคว้าเอกสารและแหล่งอ้างอิง</summary><div class="reader-research-body"><label for="readerResearchQuery">ค้นหาชื่อเอกสารหรือคำสำคัญในคลัง</label><div class="reader-compare-search"><input id="readerResearchQuery" type="search" placeholder="เช่น มาตรา 74 หรือชื่อหนังสือเวียน"><button id="readerResearchSearch" type="button">ค้นหาทั้งคลัง</button></div><p id="readerResearchStatus" role="status"></p><div id="readerResearchResults"></div><p class="text-sm text-gray-600">ค้นหาจากชื่อเอกสารที่มีในคลัง ไม่ใช่ข้อความทุกหน้าใน PDF หากต้องการค้นหาภายในไฟล์ ให้ใช้เครื่องมือค้นหาของโปรแกรมแสดง PDF หรือเปิดในแท็บใหม่</p></div></details>
             <section class="reader-notes"><label for="readerNote">บันทึกส่วนตัวเกี่ยวกับเอกสาร</label><textarea id="readerNote" rows="2" maxlength="3000" placeholder="พิมพ์บันทึกส่วนตัว (เก็บไว้ในเบราว์เซอร์เครื่องนี้)"></textarea><button id="readerSaveNote" type="button">บันทึกข้อความ</button><span id="readerNoteStatus" role="status"></span></section>
         </div>
     </dialog>
@@ -1164,6 +1171,65 @@
             }
         }
 
+        let readerResearchGeneration = 0;
+        function readerResearchMatches(query) {
+            const words = String(query || '').trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
+            if (!words.length) return [];
+            const source = readerLibraryEntries();
+            return source.map(entry => ({
+                ...entry,
+                score: words.reduce((sum, word) => sum + (entry.name.toLocaleLowerCase('th').includes(word) ? 1 : 0), 0)
+            })).filter(entry => entry.score === words.length)
+                .sort((a, b) => a.name.localeCompare(b.name, 'th')).slice(0, 30);
+        }
+        function renderReaderResearch() {
+            const root = document.getElementById('readerResearchResults');
+            const query = document.getElementById('readerResearchQuery').value;
+            const matches = readerResearchMatches(query);
+            root.replaceChildren();
+            const status = document.getElementById('readerResearchStatus');
+            status.textContent = query.trim() ? 'พบ ' + matches.length + ' รายการจากชื่อเอกสารที่โหลดแล้ว (แสดงสูงสุด 30)' : 'พิมพ์คำค้นเพื่อค้นหาเอกสารที่เกี่ยวข้อง';
+            matches.forEach(entry => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = entry.name;
+                button.title = 'เปิดเอกสารที่เกี่ยวข้อง: ' + entry.name;
+                button.addEventListener('click', () => openDocumentViewer(entry.name, entry.url));
+                root.append(button);
+            });
+        }
+        async function searchReaderResearchAll() {
+            const generation = ++readerResearchGeneration;
+            const session = authSessionGeneration;
+            const button = document.getElementById('readerResearchSearch');
+            button.disabled = true;
+            document.getElementById('readerResearchStatus').textContent = 'กำลังโหลดรายการเอกสารจากคลัง...';
+            let failures = 0;
+            try {
+                const ids = [...new Set(mainMenuData.map(item => item.menuId).filter(id =>
+                    typeof id === 'string' && id && id !== 'settings' && id !== 'about'))];
+                for (const id of ids) {
+                    if (generation !== readerResearchGeneration || session !== authSessionGeneration || !documentViewer.open) return;
+                    const sheet = 'docs_' + id;
+                    if (loadedDocumentSheets.has(sheet)) continue;
+                    try {
+                        const docs = await fetchData(sheet);
+                        if (generation !== readerResearchGeneration || session !== authSessionGeneration || !documentViewer.open) return;
+                        loadedDocumentSheets.add(sheet);
+                        docs.forEach(doc => {
+                            if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
+                            if (!documentData[doc.parentSubMenuId]) documentData[doc.parentSubMenuId] = [];
+                            documentData[doc.parentSubMenuId].push(doc);
+                        });
+                    } catch { failures++; }
+                }
+                if (generation !== readerResearchGeneration || session !== authSessionGeneration || !documentViewer.open) return;
+                renderReaderResearch();
+                if (failures) document.getElementById('readerResearchStatus').textContent += ' · โหลดไม่สำเร็จ ' + failures + ' หมวด';
+            } finally {
+                if (generation === readerResearchGeneration) button.disabled = false;
+            }
+        }
         function openDocumentViewer(name, link) {
             const safeUrl = safeExternalUrl(link);
             if (!safeUrl) {
@@ -1185,6 +1251,9 @@
             populateReaderCompare();
             frame.src = documentEmbedUrl(safeUrl);
             dialog.showModal();
+            document.getElementById('readerResearchQuery').value = '';
+            document.querySelector('.reader-research').open = false;
+            renderReaderResearch();
             renderReaderWorkspace();
         }
 
@@ -1216,6 +1285,11 @@
             if (url) frame.src = documentEmbedUrl(url);
             else frame.removeAttribute('src');
         });
+        document.getElementById('readerResearchQuery').addEventListener('input', renderReaderResearch);
+        document.getElementById('readerResearchQuery').addEventListener('keydown', event => {
+            if (event.key === 'Enter') { event.preventDefault(); searchReaderResearchAll(); }
+        });
+        document.getElementById('readerResearchSearch').addEventListener('click', searchReaderResearchAll);
         document.getElementById('readerSaveNote').addEventListener('click', () => {
             if (!currentReaderDocument) return;
             const state = readReaderState();
@@ -1226,6 +1300,8 @@
         });
         documentViewer.addEventListener('close', () => {
             readerCompareSearchGeneration++;
+            readerResearchGeneration++;
+            document.getElementById('readerResearchSearch').disabled = false;
             document.getElementById('readerCompareSearchButton').disabled = false;
             document.getElementById('documentViewerFrame').removeAttribute('src');
             document.getElementById('readerCompareFrame').removeAttribute('src');
