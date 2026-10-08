@@ -699,7 +699,7 @@
             // Invalidate in-flight navigation and clear session-scoped document data.
             latestNavigationRequest++;
             historyStack = [];
-            documentData = {};
+            documentData = Object.create(null);
             mainMenuData = [];
             subMenuData = {};
             mainLayout.classList.add('hidden');
@@ -746,7 +746,7 @@
         let historyStack = [];
         let mainMenuData = [];
         let subMenuData = {};
-        let documentData = {};
+        let documentData = Object.create(null);
         const defaultImageUrl = "https://placehold.co/100x100/d1fae5/065f46?text=%3F";
 
         const ICONS = {
@@ -1032,7 +1032,7 @@
                     // Cache empty results too, so revisiting an empty category does not refetch.
                     if (!documentData[contentId]) documentData[contentId] = [];
                     docs.forEach(doc => {
-                        if (!doc || typeof doc !== 'object' || !doc.parentSubMenuId) return;
+                        if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
                         if (!documentData[doc.parentSubMenuId]) {
                             documentData[doc.parentSubMenuId] = [];
                         }
