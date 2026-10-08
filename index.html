@@ -380,6 +380,10 @@
         #readerComparePane:not([hidden]) { display: flex; flex-direction: column; gap: 6px; }
         #readerComparePane iframe { flex: 1; width: 100%; border: 0; }
         #readerComparePane select { max-width: 100%; padding: 8px; }
+        .reader-compare-search { display: flex; gap: 6px; flex-wrap: wrap; }
+        .reader-compare-search input { flex: 1; min-width: 150px; border: 1px solid #94a3b8; border-radius: 6px; padding: 8px; }
+        .reader-compare-search button { border: 1px solid #94a3b8; border-radius: 6px; padding: 8px; }
+        #readerCompareStatus { font-size: .8rem; color: #475569; }
         .reader-notes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 16px; border-top: 1px solid #cbd5e1; }
         .reader-notes textarea { flex: 1; min-width: 160px; padding: 6px; border: 1px solid #94a3b8; border-radius: 6px; }
         .reader-notes button { padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
@@ -651,7 +655,7 @@
                 </div>
             </header>
             <p id="documentViewerHelp">หากเอกสารไม่แสดง อาจเป็นเพราะเว็บไซต์ต้นทางไม่อนุญาตให้ฝังเอกสาร กรุณาเลือก “เปิดในแท็บใหม่”</p>
-            <div class="reader-frames"><iframe id="documentViewerFrame" title="เนื้อหาเอกสาร" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe><section id="readerComparePane" hidden><label for="readerCompareSelect">เลือกเอกสารสำหรับเปรียบเทียบ</label><select id="readerCompareSelect"></select><iframe id="readerCompareFrame" title="เอกสารเปรียบเทียบ" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe></section></div>
+            <div class="reader-frames"><iframe id="documentViewerFrame" title="เนื้อหาเอกสาร" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe><section id="readerComparePane" hidden><label for="readerCompareSearch">ค้นหาเอกสารสำหรับเปรียบเทียบจากคลัง</label><div class="reader-compare-search"><input id="readerCompareSearch" type="search" placeholder="พิมพ์ชื่อเอกสาร..." autocomplete="off"><button id="readerCompareSearchButton" type="button">ค้นหาทั้งคลัง</button></div><p id="readerCompareStatus" role="status"></p><label for="readerCompareSelect">ผลการค้นหา / เอกสารที่อ่านล่าสุด</label><select id="readerCompareSelect"></select><iframe id="readerCompareFrame" title="เอกสารเปรียบเทียบ" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe></section></div>
             <section class="reader-notes"><label for="readerNote">บันทึกส่วนตัวเกี่ยวกับเอกสาร</label><textarea id="readerNote" rows="2" maxlength="3000" placeholder="พิมพ์บันทึกส่วนตัว (เก็บไว้ในเบราว์เซอร์เครื่องนี้)"></textarea><button id="readerSaveNote" type="button">บันทึกข้อความ</button><span id="readerNoteStatus" role="status"></span></section>
         </div>
     </dialog>
@@ -1055,13 +1059,31 @@
             const saved = currentReaderDocument && readReaderState().later.some(item => item.url === currentReaderDocument.url);
             document.getElementById('readerSaveLater').textContent = saved ? 'นำออกจากอ่านภายหลัง' : 'อ่านภายหลัง';
         }
+        let readerCompareSearchGeneration = 0;
+        function readerLibraryEntries() {
+            const entries = [...readReaderState().recent];
+            Object.values(documentData).forEach(docs => {
+                if (!Array.isArray(docs)) return;
+                docs.forEach(doc => {
+                    const entry = readerEntry(doc.docName, doc.docUrl);
+                    if (entry) entries.push(entry);
+                });
+            });
+            const unique = new Map();
+            entries.forEach(entry => {
+                if (entry.url !== currentReaderDocument?.url && !unique.has(entry.url)) unique.set(entry.url, entry);
+            });
+            return [...unique.values()];
+        }
         function populateReaderCompare() {
             const select = document.getElementById('readerCompareSelect');
-            const entries = readReaderState().recent.filter(item => safeExternalUrl(item.url) && item.url !== currentReaderDocument?.url);
+            const query = document.getElementById('readerCompareSearch').value.trim();
+            const entries = readerLibraryEntries().filter(item => matchesSearchTerms(item.name, query)).slice(0, 100);
+            const previous = select.value;
             select.replaceChildren();
             const placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = entries.length ? 'เลือกจากเอกสารที่อ่านล่าสุด' : 'เปิดอ่านเอกสารอื่นก่อนเพื่อเปรียบเทียบ';
+            placeholder.textContent = query ? 'เลือกจากผลการค้นหา' : 'เลือกเอกสารที่เคยเปิดหรือโหลดแล้ว';
             select.append(placeholder);
             entries.forEach(entry => {
                 const option = document.createElement('option');
@@ -1069,6 +1091,43 @@
                 option.textContent = entry.name;
                 select.append(option);
             });
+            if (entries.some(entry => entry.url === previous)) select.value = previous;
+            document.getElementById('readerCompareStatus').textContent = query
+                ? 'พบ ' + entries.length + ' รายการจากข้อมูลที่โหลดแล้ว (สูงสุด 100 รายการ)'
+                : 'มีเอกสารให้เลือก ' + entries.length + ' รายการ';
+        }
+        async function searchReaderCompareLibrary() {
+            const button = document.getElementById('readerCompareSearchButton');
+            const status = document.getElementById('readerCompareStatus');
+            const generation = ++readerCompareSearchGeneration;
+            const session = authSessionGeneration;
+            button.disabled = true;
+            status.textContent = 'กำลังค้นหาจากคลังเอกสาร...';
+            let failures = 0;
+            try {
+                const menuIds = [...new Set(mainMenuData.map(item => item.menuId).filter(id =>
+                    typeof id === 'string' && id && id !== 'settings' && id !== 'about'))];
+                for (const menuId of menuIds) {
+                    if (generation !== readerCompareSearchGeneration || session !== authSessionGeneration || !documentViewer.open) return;
+                    const sheet = 'docs_' + menuId;
+                    if (loadedDocumentSheets.has(sheet)) continue;
+                    try {
+                        const docs = await fetchData(sheet);
+                        if (generation !== readerCompareSearchGeneration || session !== authSessionGeneration || !documentViewer.open) return;
+                        loadedDocumentSheets.add(sheet);
+                        docs.forEach(doc => {
+                            if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
+                            if (!documentData[doc.parentSubMenuId]) documentData[doc.parentSubMenuId] = [];
+                            documentData[doc.parentSubMenuId].push(doc);
+                        });
+                    } catch { failures++; }
+                }
+                if (generation !== readerCompareSearchGeneration || session !== authSessionGeneration || !documentViewer.open) return;
+                populateReaderCompare();
+                status.textContent += failures ? ' · บางหมวดโหลดไม่สำเร็จ (' + failures + ' หมวด)' : ' · ค้นหาทั้งคลังเรียบร้อย';
+            } finally {
+                if (generation === readerCompareSearchGeneration) button.disabled = false;
+            }
         }
 
         function openDocumentViewer(name, link) {
@@ -1088,6 +1147,7 @@
             document.getElementById('readerNoteStatus').textContent = '';
             document.getElementById('readerComparePane').hidden = true;
             document.getElementById('readerCompareFrame').removeAttribute('src');
+            document.getElementById('readerCompareSearch').value = '';
             populateReaderCompare();
             frame.src = documentEmbedUrl(safeUrl);
             dialog.showModal();
@@ -1111,6 +1171,11 @@
             if (pane.hidden) document.getElementById('readerCompareFrame').removeAttribute('src');
             else populateReaderCompare();
         });
+        document.getElementById('readerCompareSearch').addEventListener('input', populateReaderCompare);
+        document.getElementById('readerCompareSearch').addEventListener('keydown', event => {
+            if (event.key === 'Enter') { event.preventDefault(); searchReaderCompareLibrary(); }
+        });
+        document.getElementById('readerCompareSearchButton').addEventListener('click', searchReaderCompareLibrary);
         document.getElementById('readerCompareSelect').addEventListener('change', event => {
             const url = safeExternalUrl(event.target.value);
             const frame = document.getElementById('readerCompareFrame');
@@ -1126,6 +1191,8 @@
             document.getElementById('readerNoteStatus').textContent = writeReaderState(state) ? 'บันทึกแล้ว' : 'ไม่สามารถบันทึกในเบราว์เซอร์ได้';
         });
         documentViewer.addEventListener('close', () => {
+            readerCompareSearchGeneration++;
+            document.getElementById('readerCompareSearchButton').disabled = false;
             document.getElementById('documentViewerFrame').removeAttribute('src');
             document.getElementById('readerCompareFrame').removeAttribute('src');
             currentReaderDocument = null;
