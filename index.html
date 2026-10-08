@@ -65,7 +65,18 @@
         }
         
         /* Utility Classes */
-        .hidden { display: none !important; }
+        .hidden, [hidden] { display: none !important; }
+        :focus-visible {
+            outline: 3px solid #2563eb;
+            outline-offset: 3px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
 
         /* Login Screen Styles */
         .login-wrapper {
@@ -1113,10 +1124,10 @@
                 button.addEventListener('click', function() {
                     const docName = this.dataset.documentName;
                     const docLink = this.dataset.documentLink;
-                    showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
                     const safeLink = safeExternalUrl(docLink);
                     if (safeLink) {
                         window.open(safeLink, '_blank', 'noopener,noreferrer');
+                        showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
                     } else {
                         showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
                     }
