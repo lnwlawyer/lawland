@@ -1481,6 +1481,7 @@
                     }
                     if (navigationRequest !== latestNavigationRequest) return;
                 }
+                if (!documentData[contentId]) documentData[contentId] = [];
 
                 if (Array.isArray(documentData[contentId]) && documentData[contentId].length > 0) {
                     // Renders a list of documents
