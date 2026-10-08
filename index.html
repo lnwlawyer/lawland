@@ -1226,7 +1226,11 @@
                         item.hidden = !matches;
                         if (matches) visible++;
                     });
-                    document.getElementById('documentSearchEmpty').classList.toggle('hidden', visible !== 0);
+                    const emptyState = document.getElementById('documentSearchEmpty');
+                    emptyState.classList.toggle('hidden', visible !== 0);
+                    emptyState.textContent = favoritesOnly?.checked
+                        ? 'ไม่พบรายการโปรดที่ตรงกับตัวกรอง'
+                        : 'ไม่พบเอกสารที่ตรงกับคำค้นหา';
                     const total = mainContentDisplay.querySelectorAll('#documentList .document-item').length;
                     document.getElementById('documentCount').textContent = (query || favoritesOnly?.checked)
                         ? `พบ ${visible} จาก ${total} รายการ`
