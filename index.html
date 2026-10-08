@@ -692,6 +692,12 @@
 
         function showLoginScreen() {
             window.appInitialized = false;
+            // Invalidate in-flight navigation and clear session-scoped document data.
+            latestNavigationRequest++;
+            historyStack = [];
+            documentData = {};
+            mainMenuData = [];
+            subMenuData = {};
             mainLayout.classList.add('hidden');
             loginPage.classList.remove('hidden');
             document.getElementById('emailInput').value = '';
