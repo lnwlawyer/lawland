@@ -1086,6 +1086,7 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.816 1.201-2.085 2.4-3.516 3.235C9.879 12.332 8.12 13.5 6 13.5 3.879 12.332 2.121 11.168.827 9.543A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg>
                                     <span>อ่าน</span>
                                 </button>
+                                <button type="button" class="btn-copy-document" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" aria-label="คัดลอกลิงก์เอกสาร ${escapeHtml(doc.docName)}">คัดลอกลิงก์</button>
                             </div>`;
                     });
                     htmlContent += `</div><p id="documentSearchEmpty" class="text-gray-600 mt-4 hidden" role="status">ไม่พบเอกสารที่ตรงกับคำค้นหา</p>`;
@@ -1177,6 +1178,24 @@
                 });
             });
             
+            // Copy only validated external links. Never copy unsafe schemes.
+            mainContentDisplay.querySelectorAll('.btn-copy-document').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const safeLink = safeExternalUrl(button.dataset.documentLink);
+                    if (!safeLink) {
+                        showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
+                        return;
+                    }
+                    try {
+                        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+                        await navigator.clipboard.writeText(safeLink);
+                        showMessage('คัดลอกลิงก์เอกสารแล้ว', 'success');
+                    } catch {
+                        showMessage('ไม่สามารถคัดลอกลิงก์ได้ กรุณาใช้ปุ่มอ่านเอกสาร', 'error');
+                    }
+                });
+            });
+
             // Attach event listener for theme selector
             const themeSelector = document.getElementById('theme-selector');
             if (themeSelector) {
