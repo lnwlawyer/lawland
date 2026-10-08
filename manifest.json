@@ -1,7 +1,7 @@
 {
   "name": "Land Law",
   "short_name": "Land Law",
-  "id": "/",
+  "id": "./",
   "description": "คู่มือปฏิบัติงานด้านที่ดิน",
   "start_url": "./index.html",
   "scope": "./",

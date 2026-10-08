@@ -3,7 +3,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบจัดเก็บเอกสาร</title>
     
     <!-- PWA: Manifest -->
@@ -255,6 +255,11 @@
             margin-bottom: 80px; /* Space for bottom scroll */
         }
         
+        /* Keep filtered cards and documents hidden despite their flex display rules. */
+        .menu-card[hidden], #documentList .document-item[hidden] {
+            display: none !important;
+        }
+
         /* Card specific styles */
         .menu-card-grid {
             display: grid;
@@ -344,6 +349,31 @@
         #documentList .document-item:hover {
             border-color: var(--document-hover-border);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+        /* Long Thai titles and multiple actions must not overflow narrow screens. */
+        #documentList .document-item {
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        #documentList .document-item > span {
+            flex: 1 1 100%;
+            overflow-wrap: anywhere;
+        }
+        #documentList .document-item > button,
+        #documentList .document-item > a {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @media (max-width: 640px) {
+            #documentList .document-item {
+                padding: 12px;
+            }
+            #documentList .document-item > button,
+            #documentList .document-item > a {
+                flex: 1 1 auto;
+            }
         }
         .btn-read {
             background-color: var(--button-primary-bg);
@@ -1013,18 +1043,14 @@
                         <p class="mt-4 text-gray-600 max-w-md mx-auto">
                             ผู้อำนวยการส่วนกำหนดสิทธิในที่ดินและควบคุมทะเบียนที่ดิน สำนักมาตรฐานการทะเบียนที่ดิน กรมที่ดิน
                         </p>
-                        <div class="mt-6 flex justify-center space-x-4">
-                            <a href="#" class="text-emerald-600 hover:text-emerald-800">อีเมล</a>
-                            <a href="#" class="text-emerald-600 hover:text-emerald-800">โทรศัพท์</a>
-                            <a href="#" class="text-emerald-600 hover:text-emerald-800">LinkedIn</a>
-                        </div>
+                        <p class="mt-6 text-sm text-gray-500">ยังไม่ได้ระบุช่องทางติดต่อสำหรับหน้านี้</p>
                     </div>
                 `;
             }
             else if (subMenuData[contentId] && subMenuData[contentId].length > 0) {
                 // Renders a list of cards (which are sub-menus)
                 htmlContent += `<p id="menuCount" class="text-sm text-gray-600 mb-3" role="status">หมวดทั้งหมด ${subMenuData[contentId].length} รายการ</p>`;
-                htmlContent += '<div class="mb-4"><label for="menuSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="subMenuGrid"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>';
+                htmlContent += '<div class="mb-4"><label for="menuSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>';
                 htmlContent += '<div id="subMenuGrid" class="menu-card-grid">';
                 subMenuData[contentId].forEach(item => {
                     const imageUrl = item.imageUrl || defaultImageUrl;
@@ -1076,7 +1102,7 @@
                     htmlContent += `<div class="mb-4"><label for="documentSort" class="block text-sm font-semibold text-gray-700 mb-2">เรียงลำดับเอกสาร</label><select id="documentSort" class="w-full p-3 border border-gray-300 rounded-lg"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></div>`;
                     htmlContent += `<div class="mb-3"><button id="resetDocumentFilters" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างตัวกรองและการเรียงลำดับ</button></div>`;
                     htmlContent += `<div class="mb-3"><label class="inline-flex items-center gap-2"><input id="favoritesOnly" type="checkbox"> แสดงเฉพาะรายการโปรด</label></div>`;
-                    htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"><button id="clearDocumentSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>`;
+                    htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList" aria-describedby="documentCount"><button id="clearDocumentSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
                     documentData[contentId].forEach((doc, originalIndex) => {
                         htmlContent += `
@@ -1134,11 +1160,13 @@
                 menuSearch.focus();
             });
             menuSearch?.addEventListener('input', () => {
-                const query = menuSearch.value.trim().toLocaleLowerCase('th');
+                const query = menuSearch.value.trim();
                 let visible = 0;
                 mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').forEach(card => {
-                    const matches = card.dataset.menuSearch.includes(query);
+                    const matches = matchesSearchTerms(card.dataset.menuSearch, query);
+                    if (!matches && card.contains(document.activeElement)) menuSearch.focus();
                     card.hidden = !matches;
+                    card.tabIndex = matches ? 0 : -1;
                     if (matches) visible++;
                 });
                 document.getElementById('menuSearchEmpty').classList.toggle('hidden', visible !== 0);
@@ -1217,16 +1245,21 @@
                     documentSearch.focus();
                 });
                 documentSearch.addEventListener('input', () => {
-                    const query = documentSearch.value.trim().toLocaleLowerCase('th');
+                    const query = documentSearch.value.trim();
                     let visible = 0;
                     mainContentDisplay.querySelectorAll('#documentList .document-item').forEach(item => {
                         const favoriteKey = item.querySelector('.btn-favorite-document')?.dataset.favoriteKey;
-                        const matches = item.dataset.documentSearch.includes(query) &&
+                        const matches = matchesSearchTerms(item.dataset.documentSearch, query) &&
                             (!favoritesOnly?.checked || (!!favoriteKey && favoriteDocumentLinks.has(favoriteKey)));
+                        if (!matches && item.contains(document.activeElement)) documentSearch.focus();
                         item.hidden = !matches;
                         if (matches) visible++;
                     });
-                    document.getElementById('documentSearchEmpty').classList.toggle('hidden', visible !== 0);
+                    const emptyState = document.getElementById('documentSearchEmpty');
+                    emptyState.classList.toggle('hidden', visible !== 0);
+                    emptyState.textContent = favoritesOnly?.checked
+                        ? 'ไม่พบรายการโปรดที่ตรงกับตัวกรอง'
+                        : 'ไม่พบเอกสารที่ตรงกับคำค้นหา';
                     const total = mainContentDisplay.querySelectorAll('#documentList .document-item').length;
                     document.getElementById('documentCount').textContent = (query || favoritesOnly?.checked)
                         ? `พบ ${visible} จาก ${total} รายการ`
@@ -1295,6 +1328,13 @@
                 });
                 updateActiveThemeButton();
             }
+        }
+
+        // Pure search predicate shared by menu cards and document titles.
+        function matchesSearchTerms(source, query) {
+            const haystack = String(source ?? '').toLocaleLowerCase('th');
+            const terms = String(query ?? '').trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
+            return terms.every(term => haystack.includes(term));
         }
 
         function updateSidebarActiveLink() {
