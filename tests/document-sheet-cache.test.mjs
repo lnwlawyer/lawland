@@ -5,7 +5,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 test('document fetch deduplication uses a sheet-level cache',()=>{
  assert.ok(html.includes('let loadedDocumentSheets = new Set();'));
  assert.ok(html.includes('!loadedDocumentSheets.has(docSheetName)'));
- assert.ok(html.includes('loadedDocumentSheets.add(docSheetName)'));
+ assert.ok(html.includes('loadedDocumentSheets.add(sheetName)'));
 });
 test('sheet cache is cleared on logout and account switch',()=>{
  const resets=html.split('loadedDocumentSheets = new Set();').length-1;
