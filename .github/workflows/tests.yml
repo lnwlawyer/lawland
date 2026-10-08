@@ -1,0 +1,26 @@
+name: Lawland Read-Only Tests
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'manifest.json'
+      - 'service-worker.js'
+      - 'tests/**'
+      - '.github/workflows/tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run source regression suite
+        run: node --test tests/*.test.mjs
