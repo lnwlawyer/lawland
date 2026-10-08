@@ -7,10 +7,11 @@ test('keyboard focus and reduced motion preferences are supported',()=>{
  assert.ok(html.includes(':focus-visible'));
  assert.ok(html.includes('prefers-reduced-motion: reduce'));
 });
-test('document success toast occurs only after safe URL validation',()=>{
- const start=html.indexOf("const safeLink = safeExternalUrl(docLink)");
- const end=html.indexOf("showMessage('ลิงก์เอกสารไม่ถูกต้อง",start);
+test('document viewer validates link before setting iframe source',()=>{
+ const start=html.indexOf('function openDocumentViewer(name, link)');
+ const end=html.indexOf('const documentViewer =',start);
  const block=html.slice(start,end);
- assert.ok(block.indexOf('if (safeLink)')>=0);
- assert.ok(block.indexOf('if (safeLink)')<block.indexOf('กำลังเปิดเอกสาร'));
+ assert.ok(block.includes('const safeUrl = safeExternalUrl(link)'));
+ assert.ok(block.includes('if (!safeUrl)'));
+ assert.ok(block.indexOf('if (!safeUrl)')<block.indexOf('frame.src = documentEmbedUrl(safeUrl)'));
 });
