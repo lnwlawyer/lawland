@@ -773,6 +773,7 @@
         let subMenuData = {};
         let documentData = Object.create(null);
         let loadedDocumentSheets = new Set();
+        let documentSearchShortcutHandler = null;
         const defaultImageUrl = "https://placehold.co/100x100/d1fae5/065f46?text=%3F";
 
         const ICONS = {
@@ -1119,6 +1120,27 @@
                     });
                     items.forEach(item => list.appendChild(item));
                 });
+            }
+
+            // Escape clears the current filter; slash focuses the document search.
+            if (documentSearchShortcutHandler) {
+                document.removeEventListener('keydown', documentSearchShortcutHandler);
+                documentSearchShortcutHandler = null;
+            }
+            const activeDocumentSearch = document.getElementById('documentSearch');
+            if (activeDocumentSearch) {
+                documentSearchShortcutHandler = event => {
+                    if (event.key === 'Escape' && document.activeElement === activeDocumentSearch) {
+                        activeDocumentSearch.value = '';
+                        activeDocumentSearch.dispatchEvent(new Event('input'));
+                        activeDocumentSearch.blur();
+                    } else if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey &&
+                               !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+                        event.preventDefault();
+                        activeDocumentSearch.focus();
+                    }
+                };
+                document.addEventListener('keydown', documentSearchShortcutHandler);
             }
 
             // Search only the currently rendered category; no network requests.
