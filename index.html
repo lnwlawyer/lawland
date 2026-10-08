@@ -823,9 +823,9 @@
         function showLoginScreen() {
             activeAuthenticatedUid = null;
             authSessionGeneration++;
+            window.appInitialized = false;
             documentPrefetchGeneration++;
             pendingDocumentSheets.clear();
-            window.appInitialized = false;
             // Invalidate in-flight navigation and clear session-scoped document data.
             latestNavigationRequest++;
             historyStack = [];
