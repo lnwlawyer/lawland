@@ -675,6 +675,7 @@
         }
 
         // 3. UI Helper Functions
+        let authSessionGeneration = 0;
         function showMainApp(user) {
             loginPage.classList.add('hidden');
             mainLayout.classList.remove('hidden');
@@ -683,7 +684,9 @@
             // Start the original app logic
             if (!window.appInitialized) {
                 window.appInitialized = true;
-                initApp().catch(error => {
+                const sessionGeneration = authSessionGeneration;
+                initApp(sessionGeneration).catch(error => {
+                    if (sessionGeneration !== authSessionGeneration) return;
                     window.appInitialized = false;
                     console.error('Application initialization failed:', error);
                 });
@@ -691,6 +694,7 @@
         }
 
         function showLoginScreen() {
+            authSessionGeneration++;
             window.appInitialized = false;
             // Invalidate in-flight navigation and clear session-scoped document data.
             latestNavigationRequest++;
@@ -1112,7 +1116,7 @@
             });
         }
         
-        async function initApp() {
+        async function initApp(sessionGeneration = authSessionGeneration) {
             loadTheme();
             mainContentDisplay.innerHTML = '<p>กำลังโหลดข้อมูลเมนู...</p>';
             
@@ -1122,6 +1126,7 @@
                     fetchData('SubMenu')
                 ]);
                 
+                if (sessionGeneration !== authSessionGeneration) return;
                 if (mainMenus.length > 0 && subMenus.length > 0) {
                     buildDataStructures(mainMenus, subMenus);
                     renderSidebar();
@@ -1130,6 +1135,7 @@
                     throw new Error("ข้อมูลหลัก (MainMenu หรือ SubMenu) ที่ได้รับจาก Google Sheets ว่างเปล่า");
                 }
             } catch (error) {
+                if (sessionGeneration !== authSessionGeneration) return;
                 console.error("Failed to initialize from Google Sheets.", error);
                 showMessage('เกิดข้อผิดพลาดในการโหลดข้อมูลจากชีท', 'error');
                 mainContentDisplay.innerHTML = '<p class="text-red-500">ผิดพลาด: ไม่สามารถโหลดข้อมูลหลักได้ กรุณาตรวจสอบ URL ของ Web App และชื่อชีท</p>';
