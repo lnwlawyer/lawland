@@ -1227,9 +1227,10 @@
                         if (matches) visible++;
                     });
                     document.getElementById('documentSearchEmpty').classList.toggle('hidden', visible !== 0);
-                    document.getElementById('documentCount').textContent = query
-                        ? `พบ ${visible} จาก ${mainContentDisplay.querySelectorAll('#documentList .document-item').length} รายการ`
-                        : `เอกสารทั้งหมด ${visible} รายการ`;
+                    const total = mainContentDisplay.querySelectorAll('#documentList .document-item').length;
+                    document.getElementById('documentCount').textContent = (query || favoritesOnly?.checked)
+                        ? `พบ ${visible} จาก ${total} รายการ`
+                        : `เอกสารทั้งหมด ${total} รายการ`;
                 });
             }
 
