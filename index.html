@@ -1023,6 +1023,7 @@
             }
             else if (subMenuData[contentId] && subMenuData[contentId].length > 0) {
                 // Renders a list of cards (which are sub-menus)
+                htmlContent += `<p id="menuCount" class="text-sm text-gray-600 mb-3" role="status">หมวดทั้งหมด ${subMenuData[contentId].length} รายการ</p>`;
                 htmlContent += '<div class="mb-4"><label for="menuSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="subMenuGrid"></div>';
                 htmlContent += '<div id="subMenuGrid" class="menu-card-grid">';
                 subMenuData[contentId].forEach(item => {
@@ -1135,6 +1136,9 @@
                     if (matches) visible++;
                 });
                 document.getElementById('menuSearchEmpty').classList.toggle('hidden', visible !== 0);
+                document.getElementById('menuCount').textContent = query
+                    ? `พบ ${visible} จาก ${mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').length} หมวด`
+                    : `หมวดทั้งหมด ${visible} รายการ`;
             });
 
             // Sort only the currently rendered items; preserve original source order.
