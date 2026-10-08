@@ -921,7 +921,9 @@
             }, 5000); // Hide after 5 seconds
         }
 
+        let latestNavigationRequest = 0;
         async function renderContent(contentId, isBackNavigation = false) {
+            const navigationRequest = ++latestNavigationRequest;
             // Update history stack
             if (!isBackNavigation) {
                 if (historyStack[historyStack.length - 1] !== contentId) {
@@ -1016,6 +1018,7 @@
                 
                 if (!documentData[contentId] && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
                     const docs = await fetchData(docSheetName);
+                    if (navigationRequest !== latestNavigationRequest) return;
                     // Cache empty results too, so revisiting an empty category does not refetch.
                     if (!documentData[contentId]) documentData[contentId] = [];
                     docs.forEach(doc => {
@@ -1046,6 +1049,7 @@
                      htmlContent += `<p class="text-gray-600">ยังไม่มีเนื้อหาในหมวดนี้</p>`;
                 }
             }
+            if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
 
             // Attach event listener to back button

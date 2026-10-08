@@ -9,6 +9,7 @@ test('API response is checked for success and array data',()=>{
 test('menu structure validates input arrays',()=>{
  assert.ok(html.includes("!Array.isArray(mainMenus) || !Array.isArray(allSubMenus)"));
 });
-test('document lists require array payload',()=>{
- assert.ok(html.includes("Array.isArray(docs) && docs.length > 0"));
+test('document lists require validated array payload',()=>{
+ assert.ok(html.includes("!Array.isArray(result.data)"));
+ assert.ok(html.includes("docs.forEach(doc =>"));
 });
