@@ -1073,6 +1073,7 @@
                 if (Array.isArray(documentData[contentId]) && documentData[contentId].length > 0) {
                     // Renders a list of documents
                     htmlContent += `<h3 class="text-xl font-semibold text-gray-700 mb-5">รายการเอกสารสำหรับ ${escapeHtml(title)}</h3>`;
+                    htmlContent += `<p id="documentCount" class="text-sm text-gray-600 mb-3" role="status">เอกสารทั้งหมด ${documentData[contentId].length} รายการ</p>`;
                     htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
                     documentData[contentId].forEach(doc => {
@@ -1115,6 +1116,9 @@
                         if (matches) visible++;
                     });
                     document.getElementById('documentSearchEmpty').classList.toggle('hidden', visible !== 0);
+                    document.getElementById('documentCount').textContent = query
+                        ? `พบ ${visible} จาก ${mainContentDisplay.querySelectorAll('#documentList .document-item').length} รายการ`
+                        : `เอกสารทั้งหมด ${visible} รายการ`;
                 });
             }
 
