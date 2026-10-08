@@ -576,30 +576,11 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- Service Worker Registration (Embed for Single-File PWA) ---
-        // This simulates a 'service-worker.js' using a Blob to enable PWA installability.
+        // Register a same-origin worker; avoid unsupported blob service-worker URLs.
         if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('install', (e) => {
-                    self.skipWaiting();
-                    console.log('SW Installed');
-                });
-                self.addEventListener('activate', (e) => {
-                    e.waitUntil(self.clients.claim());
-                });
-                self.addEventListener('fetch', (e) => {
-                    // Pass-through strategy for this simple app
-                    e.respondWith(fetch(e.request));
-                });
-            `;
-            // Create a Blob from the code
-            const blob = new Blob([swCode], {type: 'application/javascript'});
-            const swUrl = URL.createObjectURL(blob);
-            
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register(swUrl)
-                    .then(reg => console.log('Service Worker Registered (Blob)', reg))
-                    .catch(err => console.log('Service Worker Error', err));
+                navigator.serviceWorker.register('./service-worker.js')
+                    .catch(error => console.warn('Service Worker registration failed:', error));
             });
         }
 
