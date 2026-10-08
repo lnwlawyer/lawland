@@ -8,5 +8,5 @@ test('navigation requests carry monotonically increasing generation',()=>{
 });
 test('stale fetch completion cannot render over latest view',()=>{
  assert.ok(html.includes('if (navigationRequest !== latestNavigationRequest) return;'));
- assert.ok(html.indexOf('if (navigationRequest !== latestNavigationRequest) return;') < html.indexOf('mainContentDisplay.innerHTML = htmlContent;'));
+ assert.ok(html.indexOf('if (navigationRequest !== latestNavigationRequest) return;') < html.indexOf("mainContentDisplay.innerHTML = '<section id=\"readerWorkspace\"></section>' + htmlContent;"));
 });
