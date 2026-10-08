@@ -350,6 +350,31 @@
             border-color: var(--document-hover-border);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         }
+        /* Long Thai titles and multiple actions must not overflow narrow screens. */
+        #documentList .document-item {
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        #documentList .document-item > span {
+            flex: 1 1 100%;
+            overflow-wrap: anywhere;
+        }
+        #documentList .document-item > button,
+        #documentList .document-item > a {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @media (max-width: 640px) {
+            #documentList .document-item {
+                padding: 12px;
+            }
+            #documentList .document-item > button,
+            #documentList .document-item > a {
+                flex: 1 1 auto;
+            }
+        }
         .btn-read {
             background-color: var(--button-primary-bg);
             color: white;
