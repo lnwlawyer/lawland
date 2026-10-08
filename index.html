@@ -1348,14 +1348,14 @@
         mainContentDisplay.addEventListener('keydown', function(e) {
             if (e.key !== 'Enter' && e.key !== ' ') return;
             const target = e.target.closest('.menu-card');
-            if (!target || target !== e.target || !target.dataset.menuItem) return;
+            if (!target || target !== e.target || target.hidden || !target.dataset.menuItem) return;
             e.preventDefault();
             renderContent(target.dataset.menuItem);
         });
 
         mainContentDisplay.addEventListener('click', function(e) {
             const target = e.target.closest('.menu-card');
-            if (target && target.dataset.menuItem) {
+            if (target && !target.hidden && target.dataset.menuItem) {
                 e.preventDefault();
                 const clickedMenuItemId = target.dataset.menuItem;
                 renderContent(clickedMenuItemId);
