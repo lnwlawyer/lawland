@@ -1074,11 +1074,12 @@
                     // Renders a list of documents
                     htmlContent += `<h3 class="text-xl font-semibold text-gray-700 mb-5">รายการเอกสารสำหรับ ${escapeHtml(title)}</h3>`;
                     htmlContent += `<p id="documentCount" class="text-sm text-gray-600 mb-3" role="status">เอกสารทั้งหมด ${documentData[contentId].length} รายการ</p>`;
+                    htmlContent += `<div class="mb-4"><label for="documentSort" class="block text-sm font-semibold text-gray-700 mb-2">เรียงลำดับเอกสาร</label><select id="documentSort" class="w-full p-3 border border-gray-300 rounded-lg"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></div>`;
                     htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
-                    documentData[contentId].forEach(doc => {
+                    documentData[contentId].forEach((doc, originalIndex) => {
                         htmlContent += `
-                            <div class="document-item" data-document-search="${escapeHtml(String(doc.docName ?? '').toLocaleLowerCase('th'))}">
+                            <div class="document-item" data-original-index="${originalIndex}" data-document-name="${escapeHtml(doc.docName)}" data-document-search="${escapeHtml(String(doc.docName ?? '').toLocaleLowerCase('th'))}">
                                 <span class="text-gray-800 font-medium">${escapeHtml(doc.docName)}</span>
                                 <button class="btn-read" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" data-document-name="${escapeHtml(doc.docName)}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.816 1.201-2.085 2.4-3.516 3.235C9.879 12.332 8.12 13.5 6 13.5 3.879 12.332 2.121 11.168.827 9.543A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg>
@@ -1101,6 +1102,22 @@
                     historyStack.pop();
                     const previousId = historyStack[historyStack.length - 1];
                     renderContent(previousId, true);
+                });
+            }
+
+            // Sort only the currently rendered items; preserve original source order.
+            const documentSort = document.getElementById('documentSort');
+            if (documentSort) {
+                documentSort.addEventListener('change', () => {
+                    const list = document.getElementById('documentList');
+                    const items = [...list.querySelectorAll('.document-item')];
+                    const collator = new Intl.Collator('th', { sensitivity: 'base', numeric: true });
+                    items.sort((a, b) => {
+                        if (documentSort.value === 'original') return Number(a.dataset.originalIndex) - Number(b.dataset.originalIndex);
+                        const comparison = collator.compare(a.dataset.documentName, b.dataset.documentName);
+                        return documentSort.value === 'desc' ? -comparison : comparison;
+                    });
+                    items.forEach(item => list.appendChild(item));
                 });
             }
 
