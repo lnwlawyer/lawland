@@ -1020,7 +1020,7 @@
                 subMenuData[contentId].forEach(item => {
                     const imageUrl = item.imageUrl || defaultImageUrl;
                     htmlContent += `
-                        <div class="menu-card" data-menu-item="${escapeHtml(item.subMenuId)}">
+                        <div class="menu-card" role="button" tabindex="0" aria-label="${escapeHtml(item.subMenuTitle)}" data-menu-item="${escapeHtml(item.subMenuId)}">
                             <div class="menu-card-image-wrapper">
                                 <img src="${escapeHtml(safeExternalUrl(imageUrl) || defaultImageUrl)}" alt="${escapeHtml(item.subMenuTitle)}" class="menu-card-image" onerror="this.onerror=null;this.src='${defaultImageUrl}'">
                             </div>
@@ -1149,6 +1149,14 @@
         // We do NOT add DOMContentLoaded -> initApp anymore.
 
         // Event delegation for dynamically created menu cards
+        mainContentDisplay.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const target = e.target.closest('.menu-card');
+            if (!target || target !== e.target || !target.dataset.menuItem) return;
+            e.preventDefault();
+            renderContent(target.dataset.menuItem);
+        });
+
         mainContentDisplay.addEventListener('click', function(e) {
             const target = e.target.closest('.menu-card');
             if (target && target.dataset.menuItem) {
