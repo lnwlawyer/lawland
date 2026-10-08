@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+test('empty document categories are cached and displayed as empty', () => {
+  assert.ok(html.includes("if (!documentData[contentId]) documentData[contentId] = [];"));
+  assert.ok(html.includes("Array.isArray(documentData[contentId]) && documentData[contentId].length > 0"));
+  assert.ok(html.includes('ยังไม่มีเนื้อหาในหมวดนี้'));
+});
+test('malformed document entries are skipped', () => {
+  assert.ok(html.includes("!doc || typeof doc !== 'object' || !doc.parentSubMenuId"));
+});
+test('invalid document links do not open a blank window', () => {
+  assert.ok(html.includes('const safeLink = safeExternalUrl(docLink)'));
+  assert.ok(html.includes('if (safeLink)'));
+  assert.ok(html.includes("window.open(safeLink, '_blank', 'noopener,noreferrer')"));
+});
