@@ -1057,7 +1057,16 @@
                 const docSheetName = `docs_${parentMenuId}`;
                 
                 if (!loadedDocumentSheets.has(docSheetName) && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
-                    const docs = await fetchData(docSheetName);
+                    let docs;
+                    try {
+                        docs = await fetchData(docSheetName);
+                    } catch (error) {
+                        if (navigationRequest !== latestNavigationRequest) return;
+                        console.error('Failed to load document sheet.', error);
+                        mainContentDisplay.innerHTML = '<div role="alert" class="p-4 border border-red-300 rounded-lg"><p class="mb-3">ไม่สามารถโหลดรายการเอกสารได้ กรุณาลองอีกครั้ง</p><button id="retryDocumentLoad" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">ลองโหลดอีกครั้ง</button></div>';
+                        document.getElementById('retryDocumentLoad').addEventListener('click', () => renderContent(contentId, true));
+                        return;
+                    }
                     if (navigationRequest !== latestNavigationRequest) return;
                     // Cache each fetched sheet once, including empty results, to avoid
                     // duplicate document entries when visiting sibling categories.
