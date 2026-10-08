@@ -792,6 +792,7 @@
         function showMainApp(user) {
             if (activeAuthenticatedUid !== user.uid) {
                 authSessionGeneration++;
+                documentPrefetchGeneration++;
                 latestNavigationRequest++;
                 historyStack = [];
                 documentData = Object.create(null);
@@ -822,6 +823,8 @@
         function showLoginScreen() {
             activeAuthenticatedUid = null;
             authSessionGeneration++;
+            documentPrefetchGeneration++;
+            pendingDocumentSheets.clear();
             window.appInitialized = false;
             // Invalidate in-flight navigation and clear session-scoped document data.
             latestNavigationRequest++;
@@ -1388,6 +1391,44 @@
             pendingDocumentSheets.set(sheetName, task);
             return task;
         }
+        // Load document metadata after the menu is usable. No PDF files are fetched.
+        // Keep concurrency small to avoid saturating Google Apps Script or mobile connections.
+        let documentPrefetchGeneration = 0;
+        const DOCUMENT_PREFETCH_CONCURRENCY = 2;
+        function beginDocumentPrefetch(session = authSessionGeneration) {
+            const generation = ++documentPrefetchGeneration;
+            const menuIds = [...new Set(mainMenuData.map(item => item.menuId).filter(id =>
+                typeof id === 'string' && id && id !== 'settings' && id !== 'about'))];
+            const sheets = menuIds.map(id => 'docs_' + id);
+            let next = 0;
+            const stillCurrent = () => generation === documentPrefetchGeneration &&
+                session === authSessionGeneration && activeAuthenticatedUid !== null;
+            async function worker() {
+                while (stillCurrent() && next < sheets.length) {
+                    const sheet = sheets[next++];
+                    if (loadedDocumentSheets.has(sheet)) continue;
+                    try {
+                        await ensureDocumentSheet(sheet, session);
+                    } catch (error) {
+                        // A failed background request is retried on normal menu navigation.
+                        console.warn('Background document preload skipped:', sheet, error);
+                    }
+                    // Give navigation, painting and input handlers a chance to run.
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+            const schedule = () => {
+                if (!stillCurrent()) return;
+                for (let i = 0; i < Math.min(DOCUMENT_PREFETCH_CONCURRENCY, sheets.length); i++) {
+                    void worker();
+                }
+            };
+            if ('requestIdleCallback' in window) {
+                window.requestIdleCallback(schedule, { timeout: 1800 });
+            } else {
+                setTimeout(schedule, 300);
+            }
+        }
         let latestNavigationRequest = 0;
         async function renderContent(contentId, isBackNavigation = false) {
             const navigationRequest = ++latestNavigationRequest;
@@ -1747,6 +1788,7 @@
                     buildDataStructures(mainMenus, subMenus);
                     renderSidebar();
                     renderContent('home');
+                    beginDocumentPrefetch(sessionGeneration);
                 } else {
                     throw new Error("ข้อมูลหลัก (MainMenu หรือ SubMenu) ที่ได้รับจาก Google Sheets ว่างเปล่า");
                 }
