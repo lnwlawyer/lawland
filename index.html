@@ -858,11 +858,12 @@
             if (!Array.isArray(mainMenus) || !Array.isArray(allSubMenus)) {
                 throw new TypeError('Menu data must be arrays');
             }
-            mainMenuData = mainMenus;
-            subMenuData = {};
+            mainMenuData = mainMenus.filter(item => item && typeof item === 'object' && typeof item.menuId === 'string');
+            subMenuData = Object.create(null);
             
             // Group all sub-menus by their parent ID
             allSubMenus.forEach(item => {
+                if (!item || typeof item !== 'object' || typeof item.parentMenuId !== 'string' || typeof item.subMenuId !== 'string') return;
                 const parentId = item.parentMenuId;
                 if (!subMenuData[parentId]) {
                     subMenuData[parentId] = [];
