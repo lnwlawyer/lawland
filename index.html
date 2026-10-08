@@ -576,30 +576,11 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- Service Worker Registration (Embed for Single-File PWA) ---
-        // This simulates a 'service-worker.js' using a Blob to enable PWA installability.
+        // Register a same-origin worker; avoid unsupported blob service-worker URLs.
         if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('install', (e) => {
-                    self.skipWaiting();
-                    console.log('SW Installed');
-                });
-                self.addEventListener('activate', (e) => {
-                    e.waitUntil(self.clients.claim());
-                });
-                self.addEventListener('fetch', (e) => {
-                    // Pass-through strategy for this simple app
-                    e.respondWith(fetch(e.request));
-                });
-            `;
-            // Create a Blob from the code
-            const blob = new Blob([swCode], {type: 'application/javascript'});
-            const swUrl = URL.createObjectURL(blob);
-            
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register(swUrl)
-                    .then(reg => console.log('Service Worker Registered (Blob)', reg))
-                    .catch(err => console.log('Service Worker Error', err));
+                navigator.serviceWorker.register('./service-worker.js')
+                    .catch(error => console.warn('Service Worker registration failed:', error));
             });
         }
 
@@ -651,15 +632,8 @@
                 }
             });
         } else {
-            // Fallback if no firebase config (Show login but allow bypass for demo)
-            loginErrorMsg.innerHTML = "กรุณาใส่ Firebase Config ในโค้ด (บรรทัด ~470)<br><span class='text-xs text-gray-400'>กำลังใช้โหมดแสดงตัวอย่าง</span>";
-            loginErrorMsg.classList.remove('hidden');
-            
-            // Allow demo login
-            emailLoginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                showMainApp({ email: "demo@user.com" });
-            });
+            // Fail closed when authentication cannot be initialized.
+            showError("ไม่สามารถเชื่อมต่อระบบยืนยันตัวตนได้ กรุณาลองใหม่ภายหลัง");
         }
 
         // 2. Login Functions
@@ -708,12 +682,16 @@
             
             // Start the original app logic
             if (!window.appInitialized) {
-                initApp(); 
                 window.appInitialized = true;
+                initApp().catch(error => {
+                    window.appInitialized = false;
+                    console.error('Application initialization failed:', error);
+                });
             }
         }
 
         function showLoginScreen() {
+            window.appInitialized = false;
             mainLayout.classList.add('hidden');
             loginPage.classList.remove('hidden');
             document.getElementById('emailInput').value = '';
@@ -838,17 +816,26 @@
                 const url = new URL(WEB_APP_URL);
                 url.searchParams.append('sheetName', sheetName);
 
-                const response = await fetch(url, {
-                    method: 'GET',
-                    redirect: 'follow'
-                });
+                // Bound the wait for external data without changing the API contract.
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                let response;
+                try {
+                    response = await fetch(url, {
+                        method: 'GET',
+                        redirect: 'follow',
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
 
                 if (!response.ok) {
                     throw new Error(`Network response was not ok for sheet: ${sheetName}. Status: ${response.status}`);
                 }
                 const result = await response.json();
-                if (!result.success) {
-                    throw new Error(result.error);
+                if (!result || typeof result !== 'object' || result.success !== true || !Array.isArray(result.data)) {
+                    throw new Error('Invalid data response for sheet: ' + sheetName);
                 }
                 return result.data;
             } catch (error) {
@@ -859,6 +846,9 @@
         }
 
         function buildDataStructures(mainMenus, allSubMenus) {
+            if (!Array.isArray(mainMenus) || !Array.isArray(allSubMenus)) {
+                throw new TypeError('Menu data must be arrays');
+            }
             mainMenuData = mainMenus;
             subMenuData = {};
             
@@ -872,19 +862,35 @@
             });
         }
         
+        // Escape external sheet values before interpolating into HTML markup.
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[char]);
+        }
+
+        function safeExternalUrl(value) {
+            try {
+                const url = new URL(String(value ?? ''), window.location.href);
+                return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
+            } catch {
+                return '';
+            }
+        }
+
         function renderSidebar() {
             const mainMenusToRender = mainMenuData.filter(item => item.menuId !== 'settings' && item.menuId !== 'about');
             const staticMenus = mainMenuData.filter(item => item.menuId === 'settings' || item.menuId === 'about');
 
             let mainNavHtml = '<ul>';
             mainMenusToRender.forEach(item => {
-                mainNavHtml += `<li><a href="#" data-content-id="${item.menuId}">${ICONS[item.icon] || ''}<span>${item.menuTitle}</span></a></li>`;
+                mainNavHtml += `<li><a href="#" data-content-id="${escapeHtml(item.menuId)}">${ICONS[item.icon] || ''}<span>${escapeHtml(item.menuTitle)}</span></a></li>`;
             });
             mainNavHtml += '</ul>';
             
             let bottomNavHtml = '<div class="mt-auto"><ul>';
             staticMenus.forEach(item => {
-                bottomNavHtml += `<li><a href="#" data-content-id="${item.menuId}">${ICONS[item.icon] || ''}<span>${item.menuTitle}</span></a></li>`;
+                bottomNavHtml += `<li><a href="#" data-content-id="${escapeHtml(item.menuId)}">${ICONS[item.icon] || ''}<span>${escapeHtml(item.menuTitle)}</span></a></li>`;
             });
             bottomNavHtml += '</ul></div>';
             
@@ -995,11 +1001,11 @@
                 subMenuData[contentId].forEach(item => {
                     const imageUrl = item.imageUrl || defaultImageUrl;
                     htmlContent += `
-                        <div class="menu-card" data-menu-item="${item.subMenuId}">
+                        <div class="menu-card" role="button" tabindex="0" aria-label="${escapeHtml(item.subMenuTitle)}" data-menu-item="${escapeHtml(item.subMenuId)}">
                             <div class="menu-card-image-wrapper">
-                                <img src="${imageUrl}" alt="${item.subMenuTitle}" class="menu-card-image" onerror="this.onerror=null;this.src='${defaultImageUrl}'">
+                                <img src="${escapeHtml(safeExternalUrl(imageUrl) || defaultImageUrl)}" alt="${escapeHtml(item.subMenuTitle)}" class="menu-card-image" onerror="this.onerror=null;this.src='${defaultImageUrl}'">
                             </div>
-                            <span class="menu-card-text">${item.subMenuTitle}</span>
+                            <span class="menu-card-text">${escapeHtml(item.subMenuTitle)}</span>
                         </div>`;
                 });
                 htmlContent += '</div>';
@@ -1010,7 +1016,7 @@
                 
                 if (!documentData[contentId] && WEB_APP_URL !== 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
                     const docs = await fetchData(docSheetName);
-                    if (docs.length > 0) {
+                    if (Array.isArray(docs) && docs.length > 0) {
                         // Re-organize fetched docs by their parent ID
                         docs.forEach(doc => {
                             if (!documentData[doc.parentSubMenuId]) {
@@ -1023,13 +1029,13 @@
 
                 if (documentData[contentId]) {
                     // Renders a list of documents
-                    htmlContent += `<h3 class="text-xl font-semibold text-gray-700 mb-5">รายการเอกสารสำหรับ ${title}</h3>`;
+                    htmlContent += `<h3 class="text-xl font-semibold text-gray-700 mb-5">รายการเอกสารสำหรับ ${escapeHtml(title)}</h3>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
                     documentData[contentId].forEach(doc => {
                         htmlContent += `
                             <div class="document-item">
-                                <span class="text-gray-800 font-medium">${doc.docName}</span>
-                                <button class="btn-read" data-document-link="${doc.docUrl}" data-document-name="${doc.docName}">
+                                <span class="text-gray-800 font-medium">${escapeHtml(doc.docName)}</span>
+                                <button class="btn-read" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" data-document-name="${escapeHtml(doc.docName)}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.816 1.201-2.085 2.4-3.516 3.235C9.879 12.332 8.12 13.5 6 13.5 3.879 12.332 2.121 11.168.827 9.543A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg>
                                     <span>อ่าน</span>
                                 </button>
@@ -1060,7 +1066,7 @@
                     const docLink = this.dataset.documentLink;
                     showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
                     if (docLink) {
-                        window.open(docLink, '_blank');
+                        window.open(safeExternalUrl(docLink), '_blank', 'noopener,noreferrer');
                     }
                 });
             });
@@ -1124,6 +1130,14 @@
         // We do NOT add DOMContentLoaded -> initApp anymore.
 
         // Event delegation for dynamically created menu cards
+        mainContentDisplay.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const target = e.target.closest('.menu-card');
+            if (!target || target !== e.target || !target.dataset.menuItem) return;
+            e.preventDefault();
+            renderContent(target.dataset.menuItem);
+        });
+
         mainContentDisplay.addEventListener('click', function(e) {
             const target = e.target.closest('.menu-card');
             if (target && target.dataset.menuItem) {
