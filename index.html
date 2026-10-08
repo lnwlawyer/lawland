@@ -1309,7 +1309,8 @@
                 if (sessionGeneration !== authSessionGeneration) return;
                 console.error("Failed to initialize from Google Sheets.", error);
                 showMessage('เกิดข้อผิดพลาดในการโหลดข้อมูลจากชีท', 'error');
-                mainContentDisplay.innerHTML = '<p class="text-red-500">ผิดพลาด: ไม่สามารถโหลดข้อมูลหลักได้ กรุณาตรวจสอบ URL ของ Web App และชื่อชีท</p>';
+                mainContentDisplay.innerHTML = '<div role="alert" class="p-4 border border-red-300 rounded-lg"><p class="text-red-700 mb-3">ไม่สามารถโหลดข้อมูลหลักได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง</p><button id="retryAppInit" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">ลองโหลดข้อมูลใหม่</button></div>';
+                document.getElementById('retryAppInit').addEventListener('click', () => initApp(authSessionGeneration));
             }
         }
         
