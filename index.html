@@ -1050,7 +1050,7 @@
             else if (subMenuData[contentId] && subMenuData[contentId].length > 0) {
                 // Renders a list of cards (which are sub-menus)
                 htmlContent += `<p id="menuCount" class="text-sm text-gray-600 mb-3" role="status">หมวดทั้งหมด ${subMenuData[contentId].length} รายการ</p>`;
-                htmlContent += '<div class="mb-4"><label for="menuSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="subMenuGrid"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>';
+                htmlContent += '<div class="mb-4"><label for="menuSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>';
                 htmlContent += '<div id="subMenuGrid" class="menu-card-grid">';
                 subMenuData[contentId].forEach(item => {
                     const imageUrl = item.imageUrl || defaultImageUrl;
@@ -1102,7 +1102,7 @@
                     htmlContent += `<div class="mb-4"><label for="documentSort" class="block text-sm font-semibold text-gray-700 mb-2">เรียงลำดับเอกสาร</label><select id="documentSort" class="w-full p-3 border border-gray-300 rounded-lg"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></div>`;
                     htmlContent += `<div class="mb-3"><button id="resetDocumentFilters" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างตัวกรองและการเรียงลำดับ</button></div>`;
                     htmlContent += `<div class="mb-3"><label class="inline-flex items-center gap-2"><input id="favoritesOnly" type="checkbox"> แสดงเฉพาะรายการโปรด</label></div>`;
-                    htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList"><button id="clearDocumentSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>`;
+                    htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList" aria-describedby="documentCount"><button id="clearDocumentSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
                     documentData[contentId].forEach((doc, originalIndex) => {
                         htmlContent += `
