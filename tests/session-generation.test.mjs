@@ -8,7 +8,7 @@ test('login initialization is tied to an authentication generation',()=>{
  assert.ok(html.includes('initApp(sessionGeneration).catch('));
 });
 test('logout invalidates pending initialization',()=>{
- assert.match(html,/function showLoginScreen\(\)\s*\{\s*authSessionGeneration\+\+;/);
+ assert.match(html,/function showLoginScreen\(\)\s*\{\s*activeAuthenticatedUid = null;\s*authSessionGeneration\+\+;/);
 });
 test('late data and late errors cannot alter a new session',()=>{
  const start=html.indexOf('async function initApp(sessionGeneration');
