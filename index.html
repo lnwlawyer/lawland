@@ -1222,8 +1222,12 @@
                     const docLink = this.dataset.documentLink;
                     const safeLink = safeExternalUrl(docLink);
                     if (safeLink) {
-                        window.open(safeLink, '_blank', 'noopener,noreferrer');
-                        showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
+                        const opened = window.open(safeLink, '_blank', 'noopener,noreferrer');
+                        if (opened === null) {
+                            showMessage('เบราว์เซอร์อาจบล็อกการเปิดเอกสาร กรุณาอนุญาตป๊อปอัปแล้วลองใหม่', 'error');
+                        } else {
+                            showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
+                        }
                     } else {
                         showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
                     }
