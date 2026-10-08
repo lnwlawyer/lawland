@@ -6,7 +6,8 @@ test('reader workspace supports recent and read later',()=>{
  assert.ok(html.includes('lawland-reader-workspace-v1'));
  assert.ok(html.includes('state.recent = [entry, ...state.recent.filter'));
  assert.ok(html.includes('state.later = existing ?'));
- assert.ok(html.includes('data-reader-kind'));
+ assert.ok(html.includes('data-content-id="reader-recent"'));
+ assert.ok(html.includes('data-content-id="reader-later"'));
 });
 test('comparison stays within app and validates URLs',()=>{
  assert.ok(html.includes('id="readerComparePane" hidden'));
