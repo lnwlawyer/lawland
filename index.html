@@ -676,7 +676,18 @@
 
         // 3. UI Helper Functions
         let authSessionGeneration = 0;
+        let activeAuthenticatedUid = null;
         function showMainApp(user) {
+            if (activeAuthenticatedUid !== user.uid) {
+                authSessionGeneration++;
+                latestNavigationRequest++;
+                historyStack = [];
+                documentData = Object.create(null);
+                mainMenuData = [];
+                subMenuData = Object.create(null);
+                window.appInitialized = false;
+                activeAuthenticatedUid = user.uid;
+            }
             loginPage.classList.add('hidden');
             mainLayout.classList.remove('hidden');
             userDisplay.textContent = user.email;
@@ -694,6 +705,7 @@
         }
 
         function showLoginScreen() {
+            activeAuthenticatedUid = null;
             authSessionGeneration++;
             window.appInitialized = false;
             // Invalidate in-flight navigation and clear session-scoped document data.
