@@ -15,3 +15,11 @@ Phase 4 tasks 01–07: contextual empty state, multi-term document and submenu s
 
 ## Deployment policy
 Source-based Node tests are not browser E2E tests. Do not claim real-device acceptance without executing those checks. Require a successful tip-branch CI run, human review of the aggregate diff, explicit merge/deploy approval, and post-deploy GitHub Pages SHA verification. Do not change Firebase production, Apps Script production, billing, or paid services.
+
+## Additional Tasks 09–14
+- Confirm the shared Thai search predicate passes behavioral tests with multiple terms, reordered terms, case normalization, empty strings and null source values.
+- Confirm filtered menu cards are not Tab targets; when the focused card disappears, focus returns to submenu search.
+- Confirm focused document action returns focus to document search if filtering hides it.
+- Confirm installed PWA identity resolves under `/lawland/`, not the GitHub Pages origin root; reinstall may be needed when changing the app identity.
+- Confirm mobile pinch zoom works on Android and iOS.
+- Check remote manifest icon availability and installed app behavior on real Android devices; the existing icons are hosted on a third-party URL and installation reliability is not yet verified.
