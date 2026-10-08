@@ -1217,11 +1217,12 @@
                     documentSearch.focus();
                 });
                 documentSearch.addEventListener('input', () => {
-                    const query = documentSearch.value.trim().toLocaleLowerCase('th');
+                    const terms = documentSearch.value.trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
+                    const query = terms.join(' ');
                     let visible = 0;
                     mainContentDisplay.querySelectorAll('#documentList .document-item').forEach(item => {
                         const favoriteKey = item.querySelector('.btn-favorite-document')?.dataset.favoriteKey;
-                        const matches = item.dataset.documentSearch.includes(query) &&
+                        const matches = terms.every(term => item.dataset.documentSearch.includes(term)) &&
                             (!favoritesOnly?.checked || (!!favoriteKey && favoriteDocumentLinks.has(favoriteKey)));
                         item.hidden = !matches;
                         if (matches) visible++;
