@@ -835,10 +835,19 @@
                 const url = new URL(WEB_APP_URL);
                 url.searchParams.append('sheetName', sheetName);
 
-                const response = await fetch(url, {
-                    method: 'GET',
-                    redirect: 'follow'
-                });
+                // Bound the wait for external data without changing the API contract.
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                let response;
+                try {
+                    response = await fetch(url, {
+                        method: 'GET',
+                        redirect: 'follow',
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
 
                 if (!response.ok) {
                     throw new Error(`Network response was not ok for sheet: ${sheetName}. Status: ${response.status}`);
