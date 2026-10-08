@@ -825,21 +825,20 @@
                 // Bound the wait for external data without changing the API contract.
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
-                let response;
+                let result;
                 try {
-                    response = await fetch(url, {
+                    const response = await fetch(url, {
                         method: 'GET',
                         redirect: 'follow',
                         signal: controller.signal
                     });
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok for sheet: ${sheetName}. Status: ${response.status}`);
+                    }
+                    result = await response.json();
                 } finally {
                     clearTimeout(timeoutId);
                 }
-
-                if (!response.ok) {
-                    throw new Error(`Network response was not ok for sheet: ${sheetName}. Status: ${response.status}`);
-                }
-                const result = await response.json();
                 if (!result || typeof result !== 'object' || result.success !== true || !Array.isArray(result.data)) {
                     throw new Error('Invalid data response for sheet: ' + sheetName);
                 }
