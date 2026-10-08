@@ -383,8 +383,14 @@
         .reader-notes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 16px; border-top: 1px solid #cbd5e1; }
         .reader-notes textarea { flex: 1; min-width: 160px; padding: 6px; border: 1px solid #94a3b8; border-radius: 6px; }
         .reader-notes button { padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
-        #readerWorkspace { margin: 0 0 16px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
-        #readerWorkspace button { margin: 4px; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
+        #readerWorkspace { margin: 0 0 12px; }
+        #readerWorkspace details { border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
+        #readerWorkspace summary { cursor: pointer; padding: 10px 12px; font-weight: 600; }
+        #readerWorkspace summary:focus-visible { outline: 3px solid #059669; outline-offset: 2px; }
+        #readerWorkspace .reader-workspace-body { padding: 0 12px 12px; }
+        #readerWorkspace .reader-workspace-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 144px; overflow-y: auto; margin: 6px 0 12px; }
+        #readerWorkspace button { max-width: min(100%, 290px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; padding: 7px 10px; border: 1px solid #94a3b8; border-radius: 6px; }
+        #readerWorkspace h4 { font-weight: 600; margin-top: 8px; }
         @media (max-width: 640px) { .reader-frames:has(#readerComparePane:not([hidden])) { flex-direction: column; } }
         .document-viewer { width: min(98vw, 1400px); max-width: none; height: 94dvh; max-height: 94dvh; padding: 0; border: 1px solid #cbd5e1; border-radius: 12px; }
         .document-viewer::backdrop { background: rgba(15, 23, 42, .75); }
@@ -1029,11 +1035,16 @@
             const root = document.getElementById('readerWorkspace');
             if (!root) return;
             const state = readReaderState();
+            const wasOpen = root.querySelector('details')?.open || false;
             const renderEntries = (entries, prefix) => entries.length
-                ? entries.map((entry, i) => '<button type="button" data-reader-kind="' + prefix + '" data-reader-index="' + i + '">' + escapeHtml(entry.name) + '</button>').join('')
-                : '<span>ยังไม่มีรายการ</span>';
-            root.innerHTML = '<h3 class="font-semibold">พื้นที่อ่านเอกสารส่วนตัว</h3><p class="text-sm text-gray-600">ข้อมูลบันทึกไว้ในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p><h4>อ่านล่าสุด</h4>' +
-                renderEntries(state.recent, 'recent') + '<h4>อ่านภายหลัง</h4>' + renderEntries(state.later, 'later');
+                ? entries.map((entry, i) => '<button type="button" title="' + escapeHtml(entry.name) + '" data-reader-kind="' + prefix + '" data-reader-index="' + i + '">' + escapeHtml(entry.name) + '</button>').join('')
+                : '<span class="text-sm text-gray-500">ยังไม่มีรายการ</span>';
+            root.innerHTML = '<details' + (wasOpen ? ' open' : '') + '><summary>คลังอ่านส่วนตัว · อ่านล่าสุด ' +
+                state.recent.length + ' · อ่านภายหลัง ' + state.later.length +
+                '</summary><div class="reader-workspace-body"><p class="text-sm text-gray-600">บันทึกไว้ในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p>' +
+                '<h4>อ่านล่าสุด</h4><div class="reader-workspace-list">' + renderEntries(state.recent, 'recent') +
+                '</div><h4>อ่านภายหลัง</h4><div class="reader-workspace-list">' + renderEntries(state.later, 'later') +
+                '</div></div></details>';
             root.querySelectorAll('button[data-reader-kind]').forEach(button => button.addEventListener('click', () => {
                 const latest = readReaderState();
                 const entry = latest[button.dataset.readerKind]?.[Number(button.dataset.readerIndex)];
