@@ -255,6 +255,11 @@
             margin-bottom: 80px; /* Space for bottom scroll */
         }
         
+        /* Keep filtered cards and documents hidden despite their flex display rules. */
+        .menu-card[hidden], #documentList .document-item[hidden] {
+            display: none !important;
+        }
+
         /* Card specific styles */
         .menu-card-grid {
             display: grid;
