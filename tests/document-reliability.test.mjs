@@ -10,10 +10,10 @@ test('empty document categories are cached and displayed as empty', () => {
 test('malformed document entries are skipped', () => {
   assert.ok(html.includes("!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId"));
 });
-test('invalid document links do not open a blank window', () => {
-  assert.ok(html.includes('const safeLink = safeExternalUrl(docLink)'));
-  assert.ok(html.includes('if (safeLink)'));
-  assert.ok(html.includes("window.open(safeLink, '_blank', 'noopener,noreferrer')"));
+test('invalid document links do not open the viewer', () => {
+  assert.ok(html.includes('const safeUrl = safeExternalUrl(link)'));
+  assert.ok(html.includes('if (!safeUrl)'));
+  assert.ok(html.includes('frame.src = documentEmbedUrl(safeUrl)'));
 });
 
 test('document map is prototype-free at initialization and logout', () => {

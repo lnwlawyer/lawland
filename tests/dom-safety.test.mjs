@@ -12,7 +12,7 @@ test('external document and image URLs are protocol filtered',()=>{
  assert.ok(html.includes("['https:', 'http:'].includes(url.protocol)"));
  assert.ok(html.includes('safeExternalUrl(doc.docUrl)'));
  assert.ok(html.includes('safeExternalUrl(imageUrl)'));
- assert.ok(html.includes("'noopener,noreferrer'"));
+ assert.ok(html.includes('rel="noopener noreferrer"'));
 });
 test('no raw external values remain in HTML attribute interpolation',()=>{
  for(const expression of ['data-document-link="${doc.docUrl}"','data-menu-item="${item.subMenuId}"','data-content-id="${item.menuId}"']) {

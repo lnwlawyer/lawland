@@ -375,6 +375,16 @@
                 flex: 1 1 auto;
             }
         }
+        .document-viewer { width: min(98vw, 1400px); max-width: none; height: 94dvh; max-height: 94dvh; padding: 0; border: 1px solid #cbd5e1; border-radius: 12px; }
+        .document-viewer::backdrop { background: rgba(15, 23, 42, .75); }
+        .document-viewer-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+        .document-viewer-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #cbd5e1; }
+        #documentViewerTitle { font-size: 1.1rem; font-weight: 700; overflow-wrap: anywhere; }
+        .document-viewer-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .document-viewer-actions a, .document-viewer-actions button { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid #94a3b8; border-radius: 8px; }
+        #documentViewerHelp { padding: 8px 16px; font-size: .875rem; color: #475569; }
+        #documentViewerFrame { flex: 1; width: 100%; min-height: 0; border: 0; background: white; }
+        @media (max-width: 640px) { .document-viewer { width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; } }
         .btn-read {
             background-color: var(--button-primary-bg);
             color: white;
@@ -611,6 +621,20 @@
             </div>
         </div>
     </div>
+
+    <dialog id="documentViewer" aria-labelledby="documentViewerTitle" class="document-viewer">
+        <div class="document-viewer-shell">
+            <header class="document-viewer-header">
+                <h2 id="documentViewerTitle">อ่านเอกสาร</h2>
+                <div class="document-viewer-actions">
+                    <a id="documentViewerExternal" target="_blank" rel="noopener noreferrer">เปิดในแท็บใหม่</a>
+                    <button id="documentViewerClose" type="button">ปิดเอกสาร</button>
+                </div>
+            </header>
+            <p id="documentViewerHelp">หากเอกสารไม่แสดง อาจเป็นเพราะเว็บไซต์ต้นทางไม่อนุญาตให้ฝังเอกสาร กรุณาเลือก “เปิดในแท็บใหม่”</p>
+            <iframe id="documentViewerFrame" title="เนื้อหาเอกสาร" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>
+        </div>
+    </dialog>
 
     <script type="module">
         // Import Firebase Functions
@@ -948,6 +972,39 @@
             }
         }
 
+        function documentEmbedUrl(value) {
+            const safeUrl = safeExternalUrl(value);
+            if (!safeUrl) return '';
+            const url = new URL(safeUrl);
+            const host = url.hostname.toLowerCase();
+            if (host === 'drive.google.com') {
+                const match = url.pathname.match(/^\/file\/d\/([a-zA-Z0-9_-]+)(?:\/|$)/);
+                if (match) return 'https://drive.google.com/file/d/' + match[1] + '/preview';
+            }
+            return safeUrl;
+        }
+
+        function openDocumentViewer(name, link) {
+            const safeUrl = safeExternalUrl(link);
+            if (!safeUrl) {
+                showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
+                return;
+            }
+            const dialog = document.getElementById('documentViewer');
+            const frame = document.getElementById('documentViewerFrame');
+            document.getElementById('documentViewerTitle').textContent = name || 'อ่านเอกสาร';
+            document.getElementById('documentViewerExternal').href = safeUrl;
+            frame.src = documentEmbedUrl(safeUrl);
+            dialog.showModal();
+        }
+
+        const documentViewer = document.getElementById('documentViewer');
+        document.getElementById('documentViewerClose').addEventListener('click', () => documentViewer.close());
+        documentViewer.addEventListener('close', () => {
+            document.getElementById('documentViewerFrame').removeAttribute('src');
+            document.getElementById('documentViewerExternal').removeAttribute('href');
+        });
+
         function renderSidebar() {
             const mainMenusToRender = mainMenuData.filter(item => item.menuId !== 'settings' && item.menuId !== 'about');
             const staticMenus = mainMenuData.filter(item => item.menuId === 'settings' || item.menuId === 'about');
@@ -1267,26 +1324,13 @@
                 });
             }
 
-            // Attach event listener for "Read" buttons
-            const readButtons = document.querySelectorAll('.btn-read');
-            readButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const docName = this.dataset.documentName;
-                    const docLink = this.dataset.documentLink;
-                    const safeLink = safeExternalUrl(docLink);
-                    if (safeLink) {
-                        const opened = window.open(safeLink, '_blank', 'noopener,noreferrer');
-                        if (opened === null) {
-                            showMessage('เบราว์เซอร์อาจบล็อกการเปิดเอกสาร กรุณาอนุญาตป๊อปอัปแล้วลองใหม่', 'error');
-                        } else {
-                            showMessage(`กำลังเปิดเอกสาร: ${docName}`, 'success');
-                        }
-                    } else {
-                        showMessage('ลิงก์เอกสารไม่ถูกต้องหรือไม่รองรับ', 'error');
-                    }
+            // Open supported external documents inside an accessible modal.
+            mainContentDisplay.querySelectorAll('.btn-read').forEach(button => {
+                button.addEventListener('click', () => {
+                    openDocumentViewer(button.dataset.documentName, button.dataset.documentLink);
                 });
             });
-            
+
             // Disable invalid external anchors rather than navigating to '#'.
             mainContentDisplay.querySelectorAll('.btn-open-document').forEach(link => {
                 if (link.getAttribute('href') === '#') {

@@ -13,7 +13,7 @@ function functionSource(name, nextName) {
 const fetchSource = functionSource('fetchData', 'buildDataStructures');
 const buildSource = functionSource('buildDataStructures', 'escapeHtml');
 const helpersStart = html.indexOf('        function escapeHtml(');
-const helpersEnd = html.indexOf('        function renderSidebar(', helpersStart);
+const helpersEnd = html.indexOf('        function documentEmbedUrl(', helpersStart);
 assert.ok(helpersStart >= 0 && helpersEnd > helpersStart);
 const helperSource = html.slice(helpersStart, helpersEnd);
 
