@@ -387,6 +387,10 @@
         .reader-notes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 16px; border-top: 1px solid #cbd5e1; }
         .reader-notes textarea { flex: 1; min-width: 160px; padding: 6px; border: 1px solid #94a3b8; border-radius: 6px; }
         .reader-notes button { padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
+        .reader-library-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        .reader-library-row span { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
+        .reader-library-row button { padding: 8px 12px; border: 1px solid #94a3b8; border-radius: 6px; cursor: pointer; }
+        #readerLibrarySearch { width: 100%; padding: 12px; border: 1px solid #94a3b8; border-radius: 8px; margin-bottom: 8px; }
         #readerWorkspace { margin: 0 0 12px; }
         #readerWorkspace details { border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
         #readerWorkspace summary { cursor: pointer; padding: 10px 12px; font-weight: 600; }
@@ -1036,24 +1040,49 @@
             writeReaderState(state);
         }
         function renderReaderWorkspace() {
-            const root = document.getElementById('readerWorkspace');
-            if (!root) return;
+            const contentId = historyStack[historyStack.length - 1];
+            if (contentId !== 'reader-recent' && contentId !== 'reader-later') return;
             const state = readReaderState();
-            const wasOpen = root.querySelector('details')?.open || false;
-            const renderEntries = (entries, prefix) => entries.length
-                ? entries.map((entry, i) => '<button type="button" title="' + escapeHtml(entry.name) + '" data-reader-kind="' + prefix + '" data-reader-index="' + i + '">' + escapeHtml(entry.name) + '</button>').join('')
-                : '<span class="text-sm text-gray-500">ยังไม่มีรายการ</span>';
-            root.innerHTML = '<details' + (wasOpen ? ' open' : '') + '><summary>คลังอ่านส่วนตัว · อ่านล่าสุด ' +
-                state.recent.length + ' · อ่านภายหลัง ' + state.later.length +
-                '</summary><div class="reader-workspace-body"><p class="text-sm text-gray-600">บันทึกไว้ในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p>' +
-                '<h4>อ่านล่าสุด</h4><div class="reader-workspace-list">' + renderEntries(state.recent, 'recent') +
-                '</div><h4>อ่านภายหลัง</h4><div class="reader-workspace-list">' + renderEntries(state.later, 'later') +
-                '</div></div></details>';
-            root.querySelectorAll('button[data-reader-kind]').forEach(button => button.addEventListener('click', () => {
-                const latest = readReaderState();
-                const entry = latest[button.dataset.readerKind]?.[Number(button.dataset.readerIndex)];
-                if (entry && safeExternalUrl(entry.url)) openDocumentViewer(entry.name, entry.url);
-            }));
+            const entries = contentId === 'reader-recent' ? state.recent : state.later;
+            const list = document.getElementById('readerLibraryList');
+            if (!list) return;
+            const search = document.getElementById('readerLibrarySearch');
+            const query = search?.value || '';
+            const matches = entries.filter(entry => safeExternalUrl(entry.url) && matchesSearchTerms(entry.name, query));
+            list.replaceChildren();
+            const count = document.getElementById('readerLibraryCount');
+            if (count) count.textContent = 'พบ ' + matches.length + ' จาก ' + entries.length + ' รายการ';
+            if (!matches.length) {
+                const empty = document.createElement('p');
+                empty.textContent = query ? 'ไม่พบเอกสารที่ตรงกับคำค้นหา' : 'ยังไม่มีเอกสารในรายการนี้';
+                list.append(empty);
+            }
+            matches.forEach(entry => {
+                const row = document.createElement('div');
+                row.className = 'reader-library-row';
+                const name = document.createElement('span');
+                name.textContent = entry.name;
+                const read = document.createElement('button');
+                read.type = 'button';
+                read.textContent = 'อ่าน';
+                read.addEventListener('click', () => openDocumentViewer(entry.name, entry.url));
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.textContent = 'นำออกจากรายการ';
+                remove.setAttribute('aria-label', 'นำ ' + entry.name + ' ออกจากรายการ');
+                remove.addEventListener('click', () => {
+                    const updated = readReaderState();
+                    const key = contentId === 'reader-recent' ? 'recent' : 'later';
+                    updated[key] = updated[key].filter(item => item.url !== entry.url);
+                    if (!writeReaderState(updated)) {
+                        showMessage('ไม่สามารถบันทึกการเปลี่ยนแปลงได้', 'error');
+                        return;
+                    }
+                    renderReaderWorkspace();
+                });
+                row.append(name, read, remove);
+                list.append(row);
+            });
         }
         function updateReaderSaveButton() {
             const saved = currentReaderDocument && readReaderState().later.some(item => item.url === currentReaderDocument.url);
@@ -1208,6 +1237,9 @@
                 mainNavHtml += `<li><a href="#" data-content-id="${escapeHtml(item.menuId)}">${ICONS[item.icon] || ''}<span>${escapeHtml(item.menuTitle)}</span></a></li>`;
             });
             mainNavHtml += '</ul>';
+            mainNavHtml += '<details class="reader-sidebar-group"><summary>คลังอ่านส่วนตัว</summary><ul>' +
+                '<li><a href="#" data-content-id="reader-recent">อ่านล่าสุด</a></li>' +
+                '<li><a href="#" data-content-id="reader-later">อ่านภายหลัง</a></li></ul></details>';
             
             let bottomNavHtml = '<div class="mt-auto"><ul>';
             staticMenus.forEach(item => {
@@ -1255,7 +1287,7 @@
             const currentMainMenuItem = mainMenuData.find(m => m.menuId === contentId);
             const allSubMenus = Object.values(subMenuData).flat();
             const currentSubMenuItem = allSubMenus.find(sm => sm.subMenuId === contentId);
-            const title = currentMainMenuItem?.menuTitle || currentSubMenuItem?.subMenuTitle || contentId;
+            const title = contentId === 'reader-recent' ? 'อ่านล่าสุด' : contentId === 'reader-later' ? 'อ่านภายหลัง' : currentMainMenuItem?.menuTitle || currentSubMenuItem?.subMenuTitle || contentId;
             mainContentTitle.textContent = title;
             updateSidebarActiveLink();
 
@@ -1267,7 +1299,9 @@
             }
 
             // Determine what to render
-            if (contentId === 'settings') {
+            if (contentId === 'reader-recent' || contentId === 'reader-later') {
+                htmlContent += '<p class="text-sm text-gray-600 mb-4">รายการนี้เก็บในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p><label for="readerLibrarySearch">ค้นหาเอกสารในรายการ</label><input id="readerLibrarySearch" type="search" placeholder="พิมพ์ชื่อเอกสาร..." autocomplete="off"><p id="readerLibraryCount" role="status"></p><div id="readerLibraryList"></div>';
+            } else if (contentId === 'settings') {
                  htmlContent += `
                     <div class="space-y-6">
                         <div class="setting-item">
@@ -1374,8 +1408,11 @@
                 }
             }
             if (navigationRequest !== latestNavigationRequest) return;
-            mainContentDisplay.innerHTML = '<section id="readerWorkspace"></section>' + htmlContent;
-            renderReaderWorkspace();
+            mainContentDisplay.innerHTML = htmlContent;
+            if (contentId === 'reader-recent' || contentId === 'reader-later') {
+                document.getElementById('readerLibrarySearch')?.addEventListener('input', renderReaderWorkspace);
+                renderReaderWorkspace();
+            }
 
             // Attach event listener to back button
             const backButton = document.getElementById('backButton');
