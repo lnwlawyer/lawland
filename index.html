@@ -734,6 +734,7 @@
     </dialog>
 
     <script type="module">
+        import {mergeMenuCatalog} from './menu-catalog.mjs';
         // Import Firebase Functions
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -1094,6 +1095,17 @@
             }
         }
 
+        async function loadPublishedMenuOverrides(session) {
+            if(!contentDb)return [];
+            try{
+                const snapshot=await getDocs(query(collection(contentDb,'menuOverrides'),where('active','==',true),limit(500)));
+                if(session!==authSessionGeneration)return [];
+                return snapshot.docs.map(x=>({id:x.id,...x.data()}));
+            }catch(error){
+                console.warn('Menu overrides unavailable; using original Sheets menus',error?.code||'unknown');
+                return [];
+            }
+        }
         function buildDataStructures(mainMenus, allSubMenus) {
             if (!Array.isArray(mainMenus) || !Array.isArray(allSubMenus)) {
                 throw new TypeError('Menu data must be arrays');
@@ -2513,7 +2525,10 @@
                 
                 if (sessionGeneration !== authSessionGeneration) return;
                 if (mainMenus.length > 0 && subMenus.length > 0) {
-                    buildDataStructures(mainMenus, subMenus);
+                    const overrides=await loadPublishedMenuOverrides(sessionGeneration);
+                    if(sessionGeneration!==authSessionGeneration)return;
+                    const catalog=mergeMenuCatalog(mainMenus,subMenus,overrides);
+                    buildDataStructures(catalog.mainMenus,catalog.subMenus);
                     renderSidebar();
                     renderContent('home');
                     if (appSettings.prefetch) beginDocumentPrefetch(sessionGeneration);
