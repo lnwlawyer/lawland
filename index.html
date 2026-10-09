@@ -796,7 +796,7 @@
                 try {
                     const token = await user.getIdTokenResult(true);
                     if (routingGeneration !== roleRoutingGeneration || auth.currentUser?.uid !== user.uid) return;
-                    if (token.claims.admin === true) {
+                    if (token.claims.admin === true && new URLSearchParams(window.location.search).get('view') !== 'reader') {
                         window.location.replace('./admin.html');
                         return;
                     }
