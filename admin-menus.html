@@ -154,7 +154,7 @@ async function runIntegrityAudit(){
    const menuIds=[...new Set(mainSheets.map(x=>x.menuId).filter(x=>typeof x==='string'&&x&&x!=='settings'&&x!=='about'))];
    sheetPartial=menuIds.length>20;
    for(const menuId of menuIds.slice(0,20)){
-    if(generation!==authGeneration||auth.currentUser?.uid!==actor.uid)return;
+    if(generation!==authGeneration||auditRun!==auditGeneration||auth.currentUser?.uid!==actor.uid)return;
     try{
      const sheetDocs=await sheet('docs_'+menuId);
      if(generation!==authGeneration||auth.currentUser?.uid!==actor.uid)return;
