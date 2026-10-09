@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync, existsSync} from 'node:fs';
 const manifest=JSON.parse(readFileSync(new URL('../manifest.json',import.meta.url),'utf8'));
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 test('PWA manifest keeps project-relative identity',()=>{
@@ -13,6 +13,7 @@ test('PWA install icons use same-origin paths and supported sizes',()=>{
   assert.ok(!/^https?:\/\//i.test(icon.src),'remote icon makes install dependent on third party');
   assert.ok(/^\.\//.test(icon.src),'icon should resolve under project path');
   assert.ok(['192x192','512x512'].includes(icon.sizes));
+  assert.ok(existsSync(new URL('../'+icon.src,import.meta.url)), 'icon file must exist in repository');
  }
 });
 test('Apple touch icon uses local resource',()=>{
