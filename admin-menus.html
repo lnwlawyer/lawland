@@ -5,7 +5,7 @@
  window.__lawlandMenuBooted=function(){ready=true};
  window.addEventListener('error',function(event){if(ready)return;node.textContent='ไม่สามารถเริ่มหน้าจัดการเมนูได้ กรุณารีเฟรชหน้า ตรวจสอบการเชื่อมต่อ หรือเปิดหน้าหลักเพื่อเข้าสู่ระบบอีกครั้ง';console.error('Menu startup error',event.message)});
  window.addEventListener('unhandledrejection',function(event){if(ready)return;node.textContent='เกิดข้อผิดพลาดระหว่างเริ่มระบบ กรุณารีเฟรชหน้าและลองอีกครั้ง'});
- setTimeout(function(){if(!ready&&node.textContent.includes('กำลังตรวจสอบสิทธิ์'))node.textContent='การตรวจสอบสิทธิ์ใช้เวลานานผิดปกติ กรุณารีเฟรชหน้า หรือเข้าสู่ระบบที่หน้าหลักแล้วกลับมาใหม่'},12000);
+ setTimeout(function(){if(node.textContent.includes('กำลังตรวจสอบสิทธิ์'))node.textContent='การตรวจสอบสิทธิ์ใช้เวลานานผิดปกติ กรุณารีเฟรชหน้า หรือเข้าสู่ระบบที่หน้าหลักแล้วกลับมาใหม่'},12000);
 })();
 </script><script type="module">
 import {mergeMenuCatalog} from './menu-catalog.mjs';
