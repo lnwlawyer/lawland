@@ -9,3 +9,5 @@ test('duplicates are scoped to kind and parent and ignore current item',()=>{con
 test('hidden override leaves source intact and keeps unrelated items',()=>{const c=mergeMenuCatalog(originals,subs,[{id:'s1',kind:'sub',active:false}]);assert.deepEqual(c.subMenus.map(x=>x.subMenuId),['s2']);assert.equal(subs.length,2)});
 test('UI includes drag/drop, keyboard alternatives, safe visibility, and version checks',()=>{for(const fragment of ['dragstart','dragover','dragleave',"'drop'","'↑'","'↓'","'ซ่อนเมนู'","'แสดงเมนู'","runTransaction(db,async tx=>","conflict-reload-required","duplicateMenuTitle(","where('category','==',id)","ต้องย้ายหรือซ่อนหมวดหมู่ย่อยก่อนซ่อนเมนูหลัก"])assert.ok(html.includes(fragment),fragment)});
 test('documents preserve category IDs and Admin has menu navigation',()=>{assert.match(docs,/รหัสหมวดหมู่ย่อยเดิม/);assert.match(docs,/admin-menus\.html/);assert.doesNotMatch(html,/id="reset"/)});
+
+test('legacy Sheets menus cannot be hidden accidentally',()=>{assert.match(html,/mainSheets.some\(x=>x.menuId===id\)/);assert.match(html,/subSheets.some\(x=>x.subMenuId===id\)/);assert.match(html,/ป้องกันเอกสารเดิมหายจากการนำทาง/)});
