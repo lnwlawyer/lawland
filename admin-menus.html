@@ -1,4 +1,4 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LawLand — จัดการเมนู</title><style>body{font:16px system-ui,sans-serif;background:#f3f6fa;color:#182338;margin:0;padding:20px}main{max-width:980px;margin:auto}section{background:white;border-radius:12px;padding:20px;margin:16px 0}label{display:block;margin:12px 0 4px}input,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #a9b2c0;border-radius:6px}button{padding:10px 14px;margin:6px 6px 6px 0;border:0;border-radius:6px;background:#1656a7;color:white;cursor:pointer}button:disabled{opacity:.5}article{border-top:1px solid #ddd;padding:12px 0}article[draggable=true]{cursor:grab}article.drag-over{outline:2px dashed #1656a7;background:#eef5ff}.warning{color:#8a4b0b}.muted{color:#5a6576}</style></head><body><main><h1>จัดการเมนู LawLand</h1><p>เพิ่ม แก้ไข และจัดลำดับเมนู โดยคงข้อมูล Google Sheets เดิมไว้ทุกประการ</p><a href="./index.html">กลับหน้าหลัก</a> · <a href="./admin-documents.html">จัดการเอกสาร</a><p id="status" role="status">กำลังตรวจสอบสิทธิ์ Admin…</p><section id="workspace" hidden><h2>เพิ่ม / แก้ไขเมนู</h2><form id="menuForm"><input type="hidden" id="itemId"><input type="hidden" id="itemVersion"><label for="kind">ประเภท</label><select id="kind"><option value="main">เมนูหลัก</option><option value="sub">หมวดหมู่ย่อย</option></select><label for="title">ชื่อเมนู</label><input id="title" required maxlength="120"><label for="parentMenuId">เมนูหลักที่สังกัด (สำหรับหมวดหมู่ย่อย)</label><select id="parentMenuId"><option value="">ไม่ระบุ</option></select><label for="order">ลำดับการแสดงผล (0–9999)</label><input id="order" type="number" min="0" max="9999" required value="100"><button type="submit" id="save">บันทึกเมนู</button><button type="button" id="resetMenuButton">เพิ่มเมนูใหม่</button></form><p class="muted">การแก้ไขเมนูเดิมจะสร้างข้อมูลกำกับใน Firebase ไม่แก้ Google Sheets การเปลี่ยนรหัสหรือย้ายหมวดหมู่ย่อยอาจกระทบตำแหน่งเอกสาร จึงคงรหัสเดิมเสมอ</p></section><section id="inventory" hidden><h2>เมนูหลักและหมวดหมู่ย่อย</h2><p class="muted">ลากรายการเพื่อจัดลำดับภายในระดับเดียวกัน หรือใช้ปุ่มขึ้น/ลง · การย้ายหมวดหมู่ใช้ปุ่มแก้ไข · ซ่อนเมนูได้โดยไม่ลบข้อมูล</p><p id="count" role="status"></p><div id="items"></div><h3>รายการที่ซ่อน</h3><div id="hiddenItems"></div></section><section id="auditPanel" hidden><h2>ตรวจสอบความครบถ้วนของเมนูและเอกสาร</h2><p class="muted">ตรวจสอบแบบอ่านอย่างเดียว ไม่เปลี่ยนข้อมูลใน Google Sheets หรือ Firebase</p><button type="button" id="runAudit">ตรวจสอบความครบถ้วน</button><p id="auditStatus" role="status"></p><div id="auditFindings"></div></section></main><script>
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LawLand — จัดการเมนู</title><style>body{font:16px system-ui,sans-serif;background:#f3f6fa;color:#182338;margin:0;padding:20px}main{max-width:980px;margin:auto}section{background:white;border-radius:12px;padding:20px;margin:16px 0}label{display:block;margin:12px 0 4px}input,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #a9b2c0;border-radius:6px}button{padding:10px 14px;margin:6px 6px 6px 0;border:0;border-radius:6px;background:#1656a7;color:white;cursor:pointer}button:disabled{opacity:.5}article{border-top:1px solid #ddd;padding:12px 0}article[draggable=true]{cursor:grab}article.drag-over{outline:2px dashed #1656a7;background:#eef5ff}.warning{color:#8a4b0b}.muted{color:#5a6576}</style></head><body><main><h1>จัดการเมนู LawLand</h1><p>เพิ่ม แก้ไข และจัดลำดับเมนู โดยคงข้อมูล Google Sheets เดิมไว้ทุกประการ</p><a href="./index.html">กลับหน้าหลัก</a> · <a href="./admin-documents.html">จัดการเอกสาร</a><p id="status" role="status">กำลังตรวจสอบสิทธิ์ Admin…</p><section id="workspace" hidden><h2>เพิ่ม / แก้ไขเมนู</h2><form id="menuForm"><input type="hidden" id="itemId"><input type="hidden" id="itemVersion"><label for="kind">ประเภท</label><select id="kind"><option value="main">เมนูหลัก</option><option value="sub">หมวดหมู่ย่อย</option></select><label for="title">ชื่อเมนู</label><input id="title" required maxlength="120"><label for="parentMenuId">เมนูหลักที่สังกัด (สำหรับหมวดหมู่ย่อย)</label><select id="parentMenuId"><option value="">ไม่ระบุ</option></select><label for="order">ลำดับการแสดงผล (0–9999)</label><input id="order" type="number" min="0" max="9999" required value="100"><button type="submit" id="save">บันทึกเมนู</button><button type="button" id="resetMenuButton">เพิ่มเมนูใหม่</button></form><p class="muted">การแก้ไขเมนูเดิมจะสร้างข้อมูลกำกับใน Firebase ไม่แก้ Google Sheets การเปลี่ยนรหัสหรือย้ายหมวดหมู่ย่อยอาจกระทบตำแหน่งเอกสาร จึงคงรหัสเดิมเสมอ</p></section><section id="inventory" hidden><h2>เมนูหลักและหมวดหมู่ย่อย</h2><p class="muted">ลากรายการเพื่อจัดลำดับภายในระดับเดียวกัน หรือใช้ปุ่มขึ้น/ลง · การย้ายหมวดหมู่ใช้ปุ่มแก้ไข · ซ่อนเมนูได้โดยไม่ลบข้อมูล</p><p id="count" role="status"></p><div id="items"></div><h3>รายการที่ซ่อน</h3><div id="hiddenItems"></div></section><section id="auditPanel" hidden><h2>ตรวจสอบความครบถ้วนของเมนูและเอกสาร</h2><p class="muted">ตรวจสอบแบบอ่านอย่างเดียว ไม่เปลี่ยนข้อมูลใน Google Sheets หรือ Firebase</p><label><input id="includeSheetAudit" type="checkbox" style="width:auto"> ตรวจสอบเอกสาร Google Sheets ด้วย (อ่านไม่เกิน 20 เมนูหลักต่อครั้ง)</label><button type="button" id="runAudit">ตรวจสอบความครบถ้วน</button><p id="auditStatus" role="status"></p><div id="auditFindings"></div></section></main><script>
 (function(){
  const node=document.getElementById('status');
  const initial='กำลังตรวจสอบสิทธิ์ Admin';
@@ -20,7 +20,7 @@
 })();
 </script><script type="module">
 import {mergeMenuCatalog,duplicateMenuTitle,orderedSiblingIds,reorderSiblingIds} from './menu-catalog.mjs';
-import {auditCatalog} from './admin-integrity.mjs';
+import {auditCatalog,auditSheetDocuments,summarizeFindings} from './admin-integrity.mjs';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
 import {getFirestore,collection,doc,getDoc,getDocs,query,where,limit,startAfter,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
@@ -140,9 +140,29 @@ async function runIntegrityAudit(){
    cursor=snap.docs[snap.docs.length-1];
   }
   const findings=auditCatalog(catalog.mainMenus,catalog.subMenus,overrides,docs);
-  message.textContent='ตรวจสอบเอกสาร '+docs.length+' รายการ พบข้อสังเกต '+findings.length+' รายการ'+(complete?'':' (ผลบางส่วน: จำกัดการอ่าน 1,000 รายการ)');
+  let sheetCount=0,sheetErrors=0,sheetPartial=false;
+  if(field('includeSheetAudit').checked){
+   const menuIds=[...new Set(mainSheets.map(x=>x.menuId).filter(x=>typeof x==='string'&&x&&x!=='settings'&&x!=='about'))];
+   sheetPartial=menuIds.length>20;
+   for(const menuId of menuIds.slice(0,20)){
+    if(generation!==authGeneration||auth.currentUser?.uid!==actor.uid)return;
+    try{
+     const sheetDocs=await sheet('docs_'+menuId);
+     if(generation!==authGeneration||auth.currentUser?.uid!==actor.uid)return;
+     sheetCount+=sheetDocs.length;
+     findings.push(...auditSheetDocuments(catalog.subMenus,sheetDocs));
+    }catch(error){sheetErrors++;findings.push({severity:'warning',type:'sheet-fetch-error',id:menuId,message:'ไม่สามารถตรวจสอบเอกสาร Google Sheets ของเมนู '+menuId+' ('+(error.message||'error')+')'})}
+   }
+  }
+  const summary=summarizeFindings(findings);
+  message.textContent='ตรวจสอบ Firebase '+docs.length+' รายการ'+(field('includeSheetAudit').checked?' · Google Sheets '+sheetCount+' รายการ':'')+' · ปัญหาที่ต้องตรวจสอบ '+summary.errors+' · ข้อสังเกต '+summary.warnings+(complete?'':' · ผล Firebase บางส่วน (จำกัด 1,000 รายการ)')+(sheetPartial?' · ผล Google Sheets บางส่วน (จำกัด 20 เมนูหลัก)':'')+(sheetErrors?' · โหลด Sheets ไม่สำเร็จ '+sheetErrors+' เมนู':'');
   for(const finding of findings.slice(0,100)){
    const p=document.createElement('p');p.textContent=(finding.severity==='error'?'ต้องตรวจสอบ: ':'ข้อสังเกต: ')+finding.message;result.append(p);
+   if(['uncategorized-document','unmapped-document','hidden-document-category'].includes(finding.type)){
+    const link=document.createElement('a');link.href='./admin-documents.html?auditDoc='+encodeURIComponent(finding.id);link.textContent='เปิดจัดการเอกสาร Firebase';link.style.marginLeft='12px';p.append(link);
+   }else if(finding.type.startsWith('sheet-document-')){
+    const note=document.createElement('span');note.textContent=' — ตรวจสอบต้นฉบับ Google Sheets (ระบบนี้ไม่แก้ไขข้อมูลต้นฉบับ)';p.append(note);
+   }
   }
   if(findings.length>100){const p=document.createElement('p');p.textContent='แสดงข้อสังเกต 100 รายการแรกเท่านั้น';result.append(p)}
  }catch(error){message.textContent='ตรวจสอบไม่สำเร็จ: '+(error.code||error.message||'unknown')}
