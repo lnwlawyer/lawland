@@ -8,7 +8,7 @@ test('dedicated Firebase config has consistent project identifiers',()=>{
  assert.equal(lawlandFirebaseConfig.authDomain,'land-law-ea2bb.firebaseapp.com');
  assert.match(lawlandFirebaseConfig.appId,/^1:857909535391:web:/);
 });
-test('staging dedicated Firebase config does not switch the live app',()=>{
- assert.match(html,/projectId:\s*["']lnwlawyer["']/);
- assert.doesNotMatch(html,/projectId:\s*["']land-law-ea2bb["']/);
+test('live app uses dedicated Firebase config',()=>{
+ assert.match(html,/projectId:\s*["']land-law-ea2bb["']/);
+ assert.doesNotMatch(html,/projectId:\s*["']lnwlawyer["']/);
 });
