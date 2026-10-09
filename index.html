@@ -1411,8 +1411,12 @@
             }
             const results = [];
             const seen = new Set();
+            // Build the category lookup once per render, not once per document group.
+            const categoryTitles = new Map();
+            for (const items of Object.values(subMenuData)) {
+                for (const item of items) categoryTitles.set(item.subMenuId, item.subMenuTitle);
+            }
             for (const [subId, docs] of Object.entries(documentData)) {
-                const sub = Object.values(subMenuData).flat().find(item => item.subMenuId === subId);
                 for (const doc of docs) {
                     if (!matchesSearchTerms(doc.docName, query)) continue;
                     const url = safeExternalUrl(doc.docUrl);
@@ -1420,7 +1424,7 @@
                     const key = subId + '\\u0000' + url;
                     if (seen.has(key)) continue;
                     seen.add(key);
-                    results.push({ name: String(doc.docName || 'เอกสาร'), url, category: sub?.subMenuTitle || subId });
+                    results.push({ name: String(doc.docName || 'เอกสาร'), url, category: categoryTitles.get(subId) || subId });
                 }
             }
             count.textContent = 'พบ ' + results.length + ' รายการ · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด' +
