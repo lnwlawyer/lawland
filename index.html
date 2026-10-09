@@ -891,8 +891,8 @@
             activeAuthenticatedUid = null;
             authSessionGeneration++;
             window.appInitialized = false;
-            verifiedAdmin = false;
             document.getElementById('adminWorkspace').classList.add('hidden');
+            verifiedAdmin = false;
             documentPrefetchGeneration++;
             pendingDocumentSheets.clear();
             // Invalidate in-flight navigation and clear session-scoped document data.
