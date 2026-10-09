@@ -31,6 +31,26 @@ service cloud.firestore {
    allow create: if pageId=='about' && admin() && validAbout() && request.resource.data.version==1;
    allow update: if pageId=='about' && admin() && validAbout() && resource.data.version is int && request.resource.data.version==resource.data.version+1;
   }
+  function validMenuOverride() {
+   let d=request.resource.data;
+   return d.keys().hasAll(['kind','title','parentMenuId','order','active','version','updatedBy','updatedAt'])
+    && d.keys().hasOnly(['kind','title','parentMenuId','order','active','version','updatedBy','updatedAt'])
+    && d.kind in ['main','sub']
+    && d.title is string && d.title.size()>0 && d.title.size()<=120
+    && d.parentMenuId is string && d.parentMenuId.size()<=100
+    && (d.kind=='sub' || d.parentMenuId=='')
+    && (d.kind=='main' || d.parentMenuId.size()>0)
+    && d.order is int && d.order>=0 && d.order<=9999
+    && d.active is bool && d.version is int && d.version>0
+    && d.updatedBy==request.auth.uid && d.updatedAt==request.time;
+  }
+  match /menuOverrides/{menuId} {
+   allow get: if admin() || resource.data.active==true;
+   allow list: if admin() || resource.data.active==true;
+   allow create: if admin() && menuId.size()>0 && menuId.size()<=100 && validMenuOverride() && request.resource.data.version==1;
+   allow update: if admin() && validMenuOverride() && resource.data.version is int && request.resource.data.version==resource.data.version+1 && request.resource.data.kind==resource.data.kind;
+   allow delete: if false;
+  }
   match /managedDocuments/{documentId} {
    allow get,list: if admin() || resource.data.status=='published';
    allow create: if admin() && validDocument() && request.resource.data.version==1;
