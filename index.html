@@ -22,6 +22,10 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Settings V2 affects reading content only; avoid resizing navigation and dialogs. */
+        #mainContentDisplay { font-size: calc(1rem * var(--lawland-user-font-scale, 1)); }
+        .lawland-compact #mainContentDisplay .document-item { padding-top: .4rem; padding-bottom: .4rem; }
+
         :root {
             --app-bg: #f0fdfa;
             --app-bg-pattern: #d1fae5;
@@ -839,6 +843,8 @@
             historyStack = [];
             documentData = Object.create(null);
             loadedDocumentSheets = new Set();
+            documentCacheGeneration++;
+            pendingDocumentSheets.clear();
             favoriteDocumentLinks.clear();
             mainMenuData = [];
             subMenuData = {};
@@ -882,6 +888,31 @@
         // --- GOOGLE SHEETS CONFIGURATION ---
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwG82PSvIQjy7Ujmab4btojXbgHp2ECYJ9Lm4G49rwnSQS-7I4TbQ-tAB9UCi5zKUsZ/exec';
 
+        // Settings V2: local, non-sensitive preferences only.
+        const SETTINGS_KEY = 'lawland-settings-v2';
+        const SETTINGS_DEFAULTS = Object.freeze({ fontSize: 'normal', density: 'comfortable', documentSort: 'original', prefetch: true });
+        function readSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+                const value = { ...SETTINGS_DEFAULTS };
+                if (['small', 'normal', 'large'].includes(saved.fontSize)) value.fontSize = saved.fontSize;
+                if (['compact', 'comfortable'].includes(saved.density)) value.density = saved.density;
+                if (['original', 'asc', 'desc'].includes(saved.documentSort)) value.documentSort = saved.documentSort;
+                if (typeof saved.prefetch === 'boolean') value.prefetch = saved.prefetch;
+                return value;
+            } catch { return { ...SETTINGS_DEFAULTS }; }
+        }
+        let appSettings = readSettings();
+        function applyDisplaySettings() {
+            document.documentElement.style.setProperty('--lawland-user-font-scale',
+                appSettings.fontSize === 'large' ? '1.12' : appSettings.fontSize === 'small' ? '0.92' : '1');
+            document.documentElement.classList.toggle('lawland-compact', appSettings.density === 'compact');
+        }
+        function saveSettings(patch) {
+            appSettings = { ...appSettings, ...patch };
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
+            applyDisplaySettings();
+        }
         // --- DATA STORAGE ---
         let historyStack = [];
         let mainMenuData = [];
@@ -1445,11 +1476,13 @@
         // Share concurrent requests for the same document sheet. Keep successful
         // responses for sibling menus even when the user navigates away.
         const pendingDocumentSheets = new Map();
+        let documentCacheGeneration = 0;
         function ensureDocumentSheet(sheetName, session = authSessionGeneration) {
+            const cacheGeneration = documentCacheGeneration;
             if (loadedDocumentSheets.has(sheetName)) return Promise.resolve();
             if (pendingDocumentSheets.has(sheetName)) return pendingDocumentSheets.get(sheetName);
             const task = fetchData(sheetName).then(docs => {
-                if (session !== authSessionGeneration || loadedDocumentSheets.has(sheetName)) return;
+                if (session !== authSessionGeneration || cacheGeneration !== documentCacheGeneration || loadedDocumentSheets.has(sheetName)) return;
                 loadedDocumentSheets.add(sheetName);
                 docs.forEach(doc => {
                     if (!doc || typeof doc !== 'object' || typeof doc.parentSubMenuId !== 'string' || !doc.parentSubMenuId) return;
@@ -1574,6 +1607,26 @@
                                 <button data-theme="dark" class="theme-button px-4 py-2 rounded-lg bg-gray-800 text-white font-semibold">ธีมมืด</button>
                             </div>
                         </div>
+                        <details class="setting-item" open>
+                            <summary class="font-semibold text-lg cursor-pointer">การแสดงผลและการอ่าน</summary>
+                            <div class="grid gap-4 mt-3">
+                                <label>ขนาดตัวอักษร<select id="settingFontSize" class="block w-full p-2 border rounded"><option value="small">เล็ก</option><option value="normal">ปกติ</option><option value="large">ใหญ่</option></select></label>
+                                <label>รูปแบบรายการ<select id="settingDensity" class="block w-full p-2 border rounded"><option value="comfortable">สบายตา</option><option value="compact">กระชับ</option></select></label>
+                                <label>การเรียงลำดับเอกสารเริ่มต้น<select id="settingDocumentSort" class="block w-full p-2 border rounded"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></label>
+                            </div>
+                        </details>
+                        <details class="setting-item" open>
+                            <summary class="font-semibold text-lg cursor-pointer">ข้อมูลและการโหลด</summary>
+                            <label class="flex items-center gap-2 mt-3"><input type="checkbox" id="settingPrefetch"> โหลดรายการเอกสารล่วงหน้าในเบื้องหลัง</label>
+                            <p class="text-sm text-gray-600 mt-2">การเปลี่ยนตัวเลือกนี้จะมีผลกับการโหลดเบื้องหลังทันที และไม่ลบข้อมูลจาก Google Sheets</p>
+                            <p id="settingCacheStatus" class="text-sm text-gray-600 mt-2" role="status"></p>
+                            <button type="button" id="settingClearDocumentCache" class="px-3 py-2 rounded-lg border bg-white mt-2">ล้างแคชรายการเอกสาร</button>
+                        </details>
+                        <details class="setting-item">
+                            <summary class="font-semibold text-lg cursor-pointer">จัดการการตั้งค่า</summary>
+                            <button type="button" id="settingReset" class="px-3 py-2 rounded-lg border bg-white mt-3">คืนค่าตั้งค่าเริ่มต้น</button>
+                            <p class="text-sm text-gray-600 mt-2">การตั้งค่าบันทึกเฉพาะบนอุปกรณ์นี้ ไม่รวมรหัสผ่านหรือโทเคน</p>
+                        </details>
                         <p class="text-sm text-gray-600">ขณะนี้แอปรองรับภาษาไทย และยังไม่มีระบบแจ้งเตือนเอกสารใหม่</p>
                     </div>
                  `;
@@ -1740,6 +1793,7 @@
             // Sort only the currently rendered items; preserve original source order.
             const documentSort = document.getElementById('documentSort');
             if (documentSort) {
+                documentSort.value = appSettings.documentSort;
                 documentSort.addEventListener('change', () => {
                     const list = document.getElementById('documentList');
                     const items = [...list.querySelectorAll('.document-item')];
@@ -1751,6 +1805,7 @@
                     });
                     items.forEach(item => list.appendChild(item));
                 });
+                if (documentSort.value !== 'original') documentSort.dispatchEvent(new Event('change'));
             }
 
             // Escape clears the current filter; slash focuses the document search.
@@ -1877,6 +1932,45 @@
                 });
                 updateActiveThemeButton();
             }
+            if (contentId === 'settings') {
+                for (const [id, key] of [['settingFontSize', 'fontSize'], ['settingDensity', 'density'], ['settingDocumentSort', 'documentSort']]) {
+                    const input = document.getElementById(id);
+                    input.value = appSettings[key];
+                    input.addEventListener('change', () => saveSettings({ [key]: input.value }));
+                }
+                const prefetch = document.getElementById('settingPrefetch');
+                prefetch.checked = appSettings.prefetch;
+                prefetch.addEventListener('change', () => {
+                    saveSettings({ prefetch: prefetch.checked });
+                    documentPrefetchGeneration++;
+                    if (prefetch.checked) beginDocumentPrefetch();
+                });
+                const cacheStatus = document.getElementById('settingCacheStatus');
+                const showCacheStatus = () => {
+                    cacheStatus.textContent = 'รายการเอกสารที่เก็บในหน่วยความจำ: ' + loadedDocumentSheets.size + ' หมวดหลัก';
+                };
+                showCacheStatus();
+                document.getElementById('settingClearDocumentCache').addEventListener('click', () => {
+                    documentPrefetchGeneration++;
+                    documentCacheGeneration++;
+                    loadedDocumentSheets.clear();
+                    pendingDocumentSheets.clear();
+                    documentData = Object.create(null);
+                    showCacheStatus();
+                    if (appSettings.prefetch) beginDocumentPrefetch();
+                });
+                document.getElementById('settingReset').addEventListener('click', () => {
+                    localStorage.removeItem(SETTINGS_KEY);
+                    appSettings = { ...SETTINGS_DEFAULTS };
+                    applyDisplaySettings();
+                    document.getElementById('settingFontSize').value = appSettings.fontSize;
+                    document.getElementById('settingDensity').value = appSettings.density;
+                    document.getElementById('settingDocumentSort').value = appSettings.documentSort;
+                    prefetch.checked = appSettings.prefetch;
+                    documentPrefetchGeneration++;
+                    beginDocumentPrefetch();
+                });
+            }
         }
 
         // Pure search predicate shared by menu cards and document titles.
@@ -1904,6 +1998,7 @@
         
         async function initApp(sessionGeneration = authSessionGeneration) {
             loadTheme();
+            applyDisplaySettings();
             mainContentDisplay.innerHTML = '<p>กำลังโหลดข้อมูลเมนู...</p>';
             
             try {
@@ -1917,7 +2012,7 @@
                     buildDataStructures(mainMenus, subMenus);
                     renderSidebar();
                     renderContent('home');
-                    beginDocumentPrefetch(sessionGeneration);
+                    if (appSettings.prefetch) beginDocumentPrefetch(sessionGeneration);
                 } else {
                     throw new Error("ข้อมูลหลัก (MainMenu หรือ SubMenu) ที่ได้รับจาก Google Sheets ว่างเปล่า");
                 }
