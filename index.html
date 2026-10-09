@@ -895,8 +895,8 @@
         }
 
         function showLoginScreen() {
-            document.getElementById('adminWorkspace').classList.add('hidden');
             activeAuthenticatedUid = null;
+            document.getElementById('adminWorkspace').classList.add('hidden');
             authSessionGeneration++;
             window.appInitialized = false;
             documentPrefetchGeneration++;
