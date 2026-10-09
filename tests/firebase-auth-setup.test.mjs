@@ -10,6 +10,6 @@ test('isolated bootstrap targets only dedicated Firebase project',()=>{
  assert.match(page,/onAuthStateChanged/);
  assert.doesNotMatch(page,/getFirestore|setDoc|addDoc|runTransaction|localStorage/);
 });
-test('live app retains original Firebase project until cutover',()=>{
- assert.match(live,/projectId:\s*["']lnwlawyer["']/);
+test('live app uses new Firebase after cutover',()=>{
+ assert.match(live,/projectId:\s*["']land-law-ea2bb["']/);
 });
