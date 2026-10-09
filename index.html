@@ -354,6 +354,19 @@
             border-color: var(--document-hover-border);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         }
+        /* Keep reading primary; reveal secondary actions only on demand. */
+        .document-more-actions { position: relative; }
+        .document-more-actions > summary {
+            cursor: pointer; list-style: none; padding: .65rem .85rem;
+            border: 1px solid #d1d5db; border-radius: .5rem; background: #fff;
+            min-height: 44px; display: inline-flex; align-items: center;
+        }
+        .document-more-actions > summary::-webkit-details-marker { display: none; }
+        .document-more-actions > summary::after { content: ' ▾'; margin-left: .35rem; }
+        .document-more-actions-panel {
+            display: flex; flex-wrap: wrap; gap: .5rem; padding: .5rem 0;
+        }
+        .document-more-actions-panel > * { min-height: 44px; }
         /* Long Thai titles and multiple actions must not overflow narrow screens. */
         #documentList .document-item {
             flex-wrap: wrap;
@@ -1712,9 +1725,14 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.816 1.201-2.085 2.4-3.516 3.235C9.879 12.332 8.12 13.5 6 13.5 3.879 12.332 2.121 11.168.827 9.543A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg>
                                     <span>อ่าน</span>
                                 </button>
-                                <a class="btn-open-document px-3 py-2 rounded-lg border border-gray-300 inline-block" href="${escapeHtml(safeExternalUrl(doc.docUrl) || '#')}" target="_blank" rel="noopener noreferrer" aria-label="เปิดเอกสาร ${escapeHtml(doc.docName)} ในแท็บใหม่">เปิดในแท็บใหม่</a>
-                                <button type="button" class="btn-copy-document" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" aria-label="คัดลอกลิงก์เอกสาร ${escapeHtml(doc.docName)}">คัดลอกลิงก์</button>
                                 <button type="button" class="btn-favorite-document" data-favorite-key="${escapeHtml(safeExternalUrl(doc.docUrl))}" data-document-name="${escapeHtml(doc.docName)}" aria-pressed="false" aria-label="เพิ่มเอกสาร ${escapeHtml(doc.docName)} ในรายการโปรด">☆ รายการโปรด</button>
+                                <details class="document-more-actions">
+                                    <summary aria-label="ตัวเลือกเพิ่มเติมสำหรับ ${escapeHtml(doc.docName)}">เพิ่มเติม</summary>
+                                    <div class="document-more-actions-panel">
+                                        <a class="btn-open-document px-3 py-2 rounded-lg border border-gray-300 inline-block" href="${escapeHtml(safeExternalUrl(doc.docUrl) || '#')}" target="_blank" rel="noopener noreferrer" aria-label="เปิดเอกสาร ${escapeHtml(doc.docName)} ในแท็บใหม่">เปิดในแท็บใหม่</a>
+                                        <button type="button" class="btn-copy-document" data-document-link="${escapeHtml(safeExternalUrl(doc.docUrl))}" aria-label="คัดลอกลิงก์เอกสาร ${escapeHtml(doc.docName)}">คัดลอกลิงก์</button>
+                                    </div>
+                                </details>
                             </div>`;
                     });
                     htmlContent += `</div><p id="documentSearchEmpty" class="text-gray-600 mt-4 hidden" role="status">ไม่พบเอกสารที่ตรงกับคำค้นหา</p>`;
