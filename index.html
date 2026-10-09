@@ -737,7 +737,7 @@
         // Import Firebase Functions
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, getDocs, collection, query, where, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Register a same-origin worker; avoid unsupported blob service-worker URLs.
         if ('serviceWorker' in navigator) {
@@ -1616,6 +1616,7 @@
             staticMenus.forEach(item => {
                 bottomNavHtml += `<li><a href="#" data-content-id="${escapeHtml(item.menuId)}">${ICONS[item.icon] || ''}<span>${escapeHtml(item.menuTitle)}</span></a></li>`;
             });
+            bottomNavHtml += '<li><a href="#" data-content-id="firebase-published">' + (ICONS.book || ICONS.home || '') + '<span>เอกสารเผยแพร่ (Firebase)</span></a></li>';
             if (verifiedAdmin) {
                 bottomNavHtml += '<li><a href="#" data-content-id="admin-management">' + (ICONS.settings || '') + '<span>จัดการระบบ</span></a></li>';
             }
@@ -1821,6 +1822,8 @@
                         <p class="text-sm text-gray-600">ขณะนี้แอปรองรับภาษาไทย และยังไม่มีระบบแจ้งเตือนเอกสารใหม่</p>
                     </div>
                  `;
+            } else if (contentId === 'firebase-published') {
+                htmlContent += '<section class="max-w-4xl mx-auto rounded-xl bg-white p-5 shadow-sm"><h2 class="text-xl font-semibold mb-3">เอกสารเผยแพร่จาก Firebase</h2><p class="text-sm text-gray-600 mb-3">แสดงเฉพาะเอกสารที่ผู้ดูแลเผยแพร่แล้ว โดยไม่เปลี่ยนแปลงคลัง Google Sheets เดิม</p><label for="firebasePublishedFilter" class="block mb-2">ค้นหาเอกสาร</label><input id="firebasePublishedFilter" type="search" maxlength="120" class="border rounded-lg p-2 w-full mb-3" placeholder="ชื่อเอกสารหรือหมวดหมู่"><p id="firebasePublishedStatus" role="status">กำลังโหลดเอกสาร…</p><div id="firebasePublishedRows" class="space-y-3 mt-3"></div></section>';
             } else if (contentId === 'admin-management' && verifiedAdmin) {
                 htmlContent += '<section class="max-w-4xl mx-auto rounded-xl bg-white p-5 shadow-sm"><h2 class="text-xl font-semibold mb-3">จัดการระบบ</h2><div class="flex flex-wrap gap-3 mb-5"><button id="editAboutMenu" type="button" class="rounded-lg bg-emerald-700 text-white px-4 py-2">แก้ไขเมนูเกี่ยวกับฉัน</button><button id="adminDocumentCatalogButton" type="button" class="rounded-lg bg-blue-700 text-white px-4 py-2">ตรวจสอบคลังเอกสาร</button><a href="./admin-documents.html" class="rounded-lg bg-indigo-700 text-white px-4 py-2">เพิ่มและเผยแพร่เอกสาร (Firebase)</a><a href="./published-documents.html" class="rounded-lg bg-gray-700 text-white px-4 py-2">ดูเอกสารเผยแพร่</a></div><section id="adminDocumentCatalog" hidden aria-label="ภาพรวมคลังเอกสาร"><h3 class="text-lg font-semibold mb-2">รายการเอกสารที่โหลดแล้ว</h3><p class="text-sm text-gray-600 mb-3">แสดงเฉพาะข้อมูลที่โหลดเข้าหน้าเว็บแล้วจาก Google Sheets (อ่านอย่างเดียว) ยังไม่ใช่ระบบแก้ไขหรือเผยแพร่เอกสาร</p><label class="block mb-2" for="adminDocumentFilter">ค้นหาชื่อเอกสาร</label><input id="adminDocumentFilter" type="search" maxlength="120" class="border rounded p-2 w-full mb-3" placeholder="พิมพ์ชื่อเอกสาร"><p id="adminDocumentSummary" role="status" class="text-sm text-gray-600 mb-3"></p><div id="adminDocumentRows" class="space-y-2"></div></section></section>';
             } else if (contentId === 'about') {
@@ -1956,6 +1959,58 @@
                 search.addEventListener('input', refresh);
                 refresh();
             });
+            if (contentId === 'firebase-published') {
+                const status = document.getElementById('firebasePublishedStatus');
+                const rows = document.getElementById('firebasePublishedRows');
+                const filter = document.getElementById('firebasePublishedFilter');
+                if (!contentDb) {
+                    status.textContent = 'ไม่สามารถเชื่อมต่อ Firebase ได้';
+                } else {
+                    const session = authSessionGeneration;
+                    const uid = auth.currentUser?.uid;
+                    void (async () => {
+                        try {
+                            const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), where('status', '==', 'published')));
+                            if (navigationRequest !== latestNavigationRequest || session !== authSessionGeneration || auth.currentUser?.uid !== uid || !rows.isConnected) return;
+                            const docs = snapshot.docs.map(item => item.data()).filter(item => item.status === 'published');
+                            const render = () => {
+                                if (!rows.isConnected || navigationRequest !== latestNavigationRequest) return;
+                                const term = filter.value.trim().toLocaleLowerCase('th');
+                                const matches = docs.filter(item => String(item.title || '').toLocaleLowerCase('th').includes(term) || String(item.category || '').toLocaleLowerCase('th').includes(term));
+                                rows.replaceChildren();
+                                for (const item of matches.slice(0, 200)) {
+                                    const article = document.createElement('article');
+                                    article.className = 'border rounded-lg p-3';
+                                    const title = document.createElement('h3');
+                                    title.className = 'font-semibold';
+                                    title.textContent = String(item.title || 'ไม่มีชื่อเอกสาร');
+                                    const category = document.createElement('p');
+                                    category.className = 'text-sm text-gray-600';
+                                    category.textContent = String(item.category || '');
+                                    const description = document.createElement('p');
+                                    description.textContent = String(item.description || '');
+                                    article.append(title, category, description);
+                                    if (typeof item.url === 'string' && /^https:\/\//i.test(item.url)) {
+                                        const link = document.createElement('a');
+                                        link.href = item.url;
+                                        link.target = '_blank';
+                                        link.rel = 'noopener noreferrer';
+                                        link.className = 'text-blue-700 underline';
+                                        link.textContent = 'เปิดเอกสาร';
+                                        article.append(link);
+                                    }
+                                    rows.append(article);
+                                }
+                                status.textContent = 'พบ ' + matches.length + ' รายการ' + (matches.length > 200 ? ' · แสดง 200 รายการแรก' : '');
+                            };
+                            filter.addEventListener('input', render);
+                            render();
+                        } catch (error) {
+                            if (navigationRequest === latestNavigationRequest && rows.isConnected) status.textContent = 'โหลดเอกสาร Firebase ไม่สำเร็จ (' + (error?.code || 'unknown') + ')';
+                        }
+                    })();
+                }
+            }
             document.getElementById('editAboutMenu')?.addEventListener('click', openAboutEditor);
             if (contentId === 'about') void loadPublishedAbout(navigationRequest);
             const homeSearchForm = document.getElementById('homeDocumentSearchForm');
