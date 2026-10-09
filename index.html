@@ -1822,7 +1822,7 @@
                     </div>
                  `;
             } else if (contentId === 'admin-management' && verifiedAdmin) {
-                htmlContent += '<section class="max-w-2xl mx-auto rounded-xl bg-white p-5 shadow-sm"><h2 class="text-xl font-semibold mb-3">จัดการระบบ</h2><p class="text-gray-600 mb-4">จัดการข้อมูลสำหรับผู้ดูแลระบบ</p><button id="editAboutMenu" type="button" class="rounded-lg bg-emerald-700 text-white px-4 py-2">แก้ไขเมนูเกี่ยวกับฉัน</button><p class="text-sm text-gray-500 mt-4">ขณะนี้รองรับการแก้ไขฉบับร่างเฉพาะเบราว์เซอร์นี้ ยังไม่เผยแพร่ไปยังผู้ใช้คนอื่น</p></section>';
+                htmlContent += '<section class="max-w-4xl mx-auto rounded-xl bg-white p-5 shadow-sm"><h2 class="text-xl font-semibold mb-3">จัดการระบบ</h2><div class="flex flex-wrap gap-3 mb-5"><button id="editAboutMenu" type="button" class="rounded-lg bg-emerald-700 text-white px-4 py-2">แก้ไขเมนูเกี่ยวกับฉัน</button><button id="adminDocumentCatalogButton" type="button" class="rounded-lg bg-blue-700 text-white px-4 py-2">ตรวจสอบคลังเอกสาร</button></div><section id="adminDocumentCatalog" hidden aria-label="ภาพรวมคลังเอกสาร"><h3 class="text-lg font-semibold mb-2">รายการเอกสารที่โหลดแล้ว</h3><p class="text-sm text-gray-600 mb-3">แสดงเฉพาะข้อมูลที่โหลดเข้าหน้าเว็บแล้วจาก Google Sheets (อ่านอย่างเดียว) ยังไม่ใช่ระบบแก้ไขหรือเผยแพร่เอกสาร</p><label class="block mb-2" for="adminDocumentFilter">ค้นหาชื่อเอกสาร</label><input id="adminDocumentFilter" type="search" maxlength="120" class="border rounded p-2 w-full mb-3" placeholder="พิมพ์ชื่อเอกสาร"><p id="adminDocumentSummary" role="status" class="text-sm text-gray-600 mb-3"></p><div id="adminDocumentRows" class="space-y-2"></div></section></section>';
             } else if (contentId === 'about') {
                 const aboutInfo = publishedAbout || ABOUT_DEFAULTS;
                 htmlContent += `
@@ -1913,6 +1913,49 @@
             }
             if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
+            document.getElementById('adminDocumentCatalogButton')?.addEventListener('click', () => {
+                if (!verifiedAdmin || !auth.currentUser) return;
+                const panel = document.getElementById('adminDocumentCatalog');
+                if (!panel) return;
+                panel.hidden = !panel.hidden;
+                if (panel.hidden) return;
+                const search = document.getElementById('adminDocumentFilter');
+                const summary = document.getElementById('adminDocumentSummary');
+                const rows = document.getElementById('adminDocumentRows');
+                const refresh = () => {
+                    if (!verifiedAdmin || !auth.currentUser || !panel.isConnected) return;
+                    const docs = Object.values(documentData).filter(Array.isArray).flat();
+                    const term = search.value.trim().toLocaleLowerCase('th');
+                    const matched = docs.filter(doc => String(doc.docName || '').toLocaleLowerCase('th').includes(term)).slice(0, 100);
+                    summary.textContent = 'โหลดแล้ว ' + docs.length + ' รายการ · แสดง ' + matched.length + ' รายการ (สูงสุด 100)';
+                    rows.replaceChildren();
+                    if (!matched.length) {
+                        const empty = document.createElement('p');
+                        empty.textContent = 'ไม่พบเอกสารในข้อมูลที่โหลดแล้ว กรุณาเปิดหมวดเอกสารก่อนกลับมาตรวจสอบ';
+                        rows.append(empty);
+                    }
+                    matched.forEach(doc => {
+                        const item = document.createElement('div');
+                        item.className = 'border rounded-lg p-3';
+                        const name = document.createElement('p');
+                        name.className = 'font-medium';
+                        name.textContent = String(doc.docName || 'ไม่ระบุชื่อ');
+                        item.append(name);
+                        if (typeof doc.docUrl === 'string' && /^https:\/\//i.test(doc.docUrl)) {
+                            const link = document.createElement('a');
+                            link.href = doc.docUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.className = 'text-blue-700 underline text-sm';
+                            link.textContent = 'เปิดเอกสารต้นทาง';
+                            item.append(link);
+                        }
+                        rows.append(item);
+                    });
+                };
+                search.addEventListener('input', refresh);
+                refresh();
+            });
             document.getElementById('editAboutMenu')?.addEventListener('click', openAboutEditor);
             if (contentId === 'about') void loadPublishedAbout(navigationRequest);
             const homeSearchForm = document.getElementById('homeDocumentSearchForm');
