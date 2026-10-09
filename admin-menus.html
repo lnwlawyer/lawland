@@ -126,6 +126,8 @@ async function reload(uid,generation){
 form.addEventListener('submit',async e=>{e.preventDefault();const actor=auth.currentUser,uid=authorizedUid;if(!actor||actor.uid!==uid)return;const generation=authGeneration,kind=field('kind').value,title=field('title').value.trim(),parentMenuId=kind==='sub'?field('parentMenuId').value:'',order=Number(field('order').value),existingId=field('itemId').value,id=existingId||'custom-'+crypto.randomUUID();if(duplicateMenuTitle(catalog,kind,title,parentMenuId,existingId)){status.textContent='มีชื่อเมนูซ้ำในระดับเดียวกัน กรุณาใช้ชื่ออื่น';return}if(!title||title.length>120||!Number.isInteger(order)||order<0||order>9999||(kind==='sub'&&!catalog.mainMenus.some(x=>x.menuId===parentMenuId))){status.textContent='ตรวจสอบชื่อเมนู ลำดับ และเมนูหลักที่สังกัด';return}const expected=Number(field('itemVersion').value);field('save').disabled=true;try{const token=await actor.getIdTokenResult(true);if(token.claims.admin!==true||auth.currentUser?.uid!==uid||generation!==authGeneration)throw Error('permission-denied');await runTransaction(db,async tx=>{const ref=doc(db,'menuOverrides',id),snapshot=await tx.get(ref),old=snapshot.exists()?snapshot.data():null;if(old&&old.version!==expected)throw Error('stale-menu-reload-required');if(!old&&expected!==0)throw Error('stale-menu-reload-required');if(old&&old.kind!==kind)throw Error('menu-kind-immutable');tx.set(ref,{kind,title,parentMenuId,order,active:true,version:(old?.version||0)+1,updatedBy:actor.uid,updatedAt:serverTimestamp()})});if(auth.currentUser?.uid!==uid||generation!==authGeneration)return;await reload(uid,generation);reset();status.textContent='บันทึกเมนูสำเร็จ';}catch(error){status.textContent='ไม่สามารถบันทึกเมนูได้: '+(error.code||error.message||'unknown')+' โปรดตรวจสอบว่าเผยแพร่ Firestore Rules สำหรับเมนูแล้ว';}finally{field('save').disabled=false}});
 function invalidateAudit(){
  auditGeneration++;
+ auditBusy=false;
+ field('runAudit').disabled=false;
  auditExport=null;
  field('downloadAudit').disabled=true;
  field('auditFindings').replaceChildren();
@@ -157,10 +159,10 @@ async function runIntegrityAudit(){
     if(generation!==authGeneration||auditRun!==auditGeneration||auth.currentUser?.uid!==actor.uid)return;
     try{
      const sheetDocs=await sheet('docs_'+menuId);
-     if(generation!==authGeneration||auth.currentUser?.uid!==actor.uid)return;
+     if(generation!==authGeneration||auditRun!==auditGeneration||auth.currentUser?.uid!==actor.uid)return;
      sheetCount+=sheetDocs.length;
      findings.push(...auditSheetDocuments(catalog.subMenus,sheetDocs));
-    }catch(error){sheetErrors++;findings.push({severity:'warning',type:'sheet-fetch-error',id:menuId,message:'ไม่สามารถตรวจสอบเอกสาร Google Sheets ของเมนู '+menuId+' ('+(error.message||'error')+')'})}
+    }catch(error){if(generation!==authGeneration||auditRun!==auditGeneration||auth.currentUser?.uid!==actor.uid)return;sheetErrors++;findings.push({severity:'warning',type:'sheet-fetch-error',id:menuId,message:'ไม่สามารถตรวจสอบเอกสาร Google Sheets ของเมนู '+menuId+' ('+(error.message||'error')+')'})}
    }
   }
   if(generation!==authGeneration||auditRun!==auditGeneration||auth.currentUser?.uid!==actor.uid)return;
