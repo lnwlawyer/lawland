@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+const html=readFileSync(new URL('../admin-menus.html',import.meta.url),'utf8');
+test('early classic script watchdog detects module load stalls within eight seconds',()=>{assert.match(html,/<script>\s*\(function\(\)/);assert.match(html,/setTimeout\(function\(\)/);assert.match(html,/8000\)/);assert.match(html,/ไม่สามารถตรวจสอบสิทธิ์ Admin ได้ภายใน 8 วินาที/);assert.match(html,/window.addEventListener\('error'/)});
+test('auth observer exposes progress stages and errors',()=>{assert.match(html,/window.__lawlandMenuSetStage\?\.\('module-loaded'\)/);assert.match(html,/window.__lawlandMenuSetStage\?\.\('auth-listening'\)/);assert.match(html,/กำลังตรวจสอบบัญชีผู้ใช้/);assert.match(html,/ยืนยันสิทธิ์แล้ว กำลังโหลดรายการเมนู/);assert.match(html,/ตรวจสอบสถานะเข้าสู่ระบบไม่สำเร็จ/)});
