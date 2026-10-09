@@ -16,8 +16,8 @@ export function auditCatalog(mainMenus,subMenus,overrides,documents){
  for(const doc of documents){
   const category=String(doc.category||'');
   if(!category)findings.push({severity:'warning',type:'uncategorized-document',id:doc.id,message:'เอกสารยังไม่กำหนดหมวดหมู่: '+String(doc.title||doc.id)});
-  else if(!subs.has(category))findings.push({severity:'warning',type:'unmapped-document',id:doc.id,message:'เอกสารไม่ตรงกับหมวดหมู่ที่แสดง: '+String(doc.title||doc.id)});
   else if(hidden.has(category))findings.push({severity:'error',type:'hidden-document-category',id:doc.id,message:'เอกสารอยู่ในหมวดหมู่ที่ซ่อน: '+String(doc.title||doc.id)});
+  else if(!subs.has(category))findings.push({severity:'warning',type:'unmapped-document',id:doc.id,message:'เอกสารไม่ตรงกับหมวดหมู่ที่แสดง: '+String(doc.title||doc.id)});
  }
  return findings;
 }
