@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 test('empty document categories are cached and displayed as empty', () => {
   assert.ok(html.includes("if (!documentData[contentId]) documentData[contentId] = [];"));
-  assert.ok(html.includes("Array.isArray(documentData[contentId]) && documentData[contentId].length > 0"));
+  assert.ok(html.includes("Array.isArray(visibleCategoryDocuments) && visibleCategoryDocuments.length > 0"));
   assert.ok(html.includes('ยังไม่มีเนื้อหาในหมวดนี้'));
 });
 test('malformed document entries are skipped', () => {
