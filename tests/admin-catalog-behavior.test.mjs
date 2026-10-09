@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {filterAdminDocuments,paginateAdminDocuments} from '../admin-catalog.mjs';
+const source=readFileSync(new URL('../admin-documents.html',import.meta.url),'utf8');
+const rows=Array.from({length:55},(_,i)=>({id:String(i),title:i===0?'กฎหมายที่ดิน':'คู่มือ '+i,category:i%2?'ทะเบียน':'กฎหมาย',status:i%3===0?'published':i%3===1?'draft':'trashed'}));
+test('Thai search filters title and category without changing records',()=>{const before=JSON.stringify(rows);assert.equal(filterAdminDocuments(rows,'all',' กฎหมาย ').length,28);assert.equal(filterAdminDocuments(rows,'all','ที่ดิน').length,1);assert.equal(JSON.stringify(rows),before)});
+test('status filters include published, draft, trashed and all',()=>{assert.equal(filterAdminDocuments(rows,'published').length,19);assert.equal(filterAdminDocuments(rows,'draft').length,18);assert.equal(filterAdminDocuments(rows,'trashed').length,18);assert.equal(filterAdminDocuments(rows,'all').length,55)});
+test('pagination returns correct page boundaries and clamps stale page',()=>{assert.equal(paginateAdminDocuments(rows,0).items.length,20);assert.equal(paginateAdminDocuments(rows,1).items[0].id,'20');assert.equal(paginateAdminDocuments(rows,2).items.length,15);assert.deepEqual(paginateAdminDocuments(rows,99).page,2);assert.deepEqual(paginateAdminDocuments([],9),{page:0,pages:1,items:[]})});
+test('Admin UI uses tested catalog operations and limits Firestore batches',()=>{assert.match(source,/filterAdminDocuments\(records,chosen,term\)/);assert.match(source,/paginateAdminDocuments\(filtered,adminPage,ADMIN_PAGE_SIZE\)/);assert.match(source,/ADMIN_FETCH_SIZE=50,ADMIN_PAGE_SIZE=20/);assert.match(source,/startAfter\(lastDocument\)/)});
+test('auth, session reset and lifecycle safeguards remain wired',()=>{assert.match(source,/const verification=\+\+authVerificationGeneration/);assert.match(source,/authorizedUid=null;clean\(\)/);assert.match(source,/field\('adminSearch'\).value=''/);assert.match(source,/token.claims.admin!==true/);assert.match(source,/old.data\(\).version!==expectedVersion/);assert.match(source,/action==='delete'/);assert.match(source,/previous.status!=='trashed'/)});
