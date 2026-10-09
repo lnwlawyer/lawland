@@ -1,3 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-test('home search uses compact single-row layout',()=>{assert.ok(html.includes('class="home-compact-search"'));assert.ok(html.includes('max-width: 640px'));assert.ok(html.includes('placeholder="ค้นหาเอกสารทุกหมวด..."'));assert.ok(html.includes('id="homeDocumentSearchForm"'));});
-test('home category filter is optional without losing menu filtering',()=>{assert.ok(html.includes('<details class="home-category-filter"><summary>ค้นหาหมวดหมู่</summary>'));assert.ok(html.includes("contentId === 'home' ? '</details>' : '</div>'"));assert.ok(html.includes("const menuSearch = document.getElementById('menuSearch')"));assert.ok(html.includes('id="subMenuGrid"'));});
+test('home has side-by-side equal width document and category search',()=>{
+ assert.ok(html.includes('class="home-search-pair"'));
+ assert.ok(html.includes('grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)'));
+ assert.ok(html.includes('id="homeDocumentSearchForm"'));
+ assert.ok(html.includes('id="menuSearch"'));
+ assert.ok(html.includes('class="home-category-search"'));
+});
+test('category search is always visible and can be cleared without hiding it',()=>{
+ assert.ok(!html.includes('home-category-filter'));
+ assert.ok(html.includes('id="clearMenuSearch"'));
+ assert.ok(html.includes("menuSearch.dispatchEvent(new Event('input'))"));
+ assert.ok(html.includes('id="subMenuGrid"'));
+ assert.ok(html.includes('@media (max-width: 640px)'));
+});
