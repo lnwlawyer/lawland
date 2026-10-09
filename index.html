@@ -1764,12 +1764,16 @@
             if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
             const homeSearchForm = document.getElementById('homeDocumentSearchForm');
-            homeSearchForm?.addEventListener('submit', event => {
+            homeSearchForm?.addEventListener('submit', async event => {
                 event.preventDefault();
                 const query = document.getElementById('homeDocumentSearch').value.trim();
                 if (!query) return;
                 historyStack = ['global-search'];
-                renderContent('global-search');
+                const requestedNavigation = latestNavigationRequest + 1;
+                await renderContent('global-search');
+                // A later navigation must never receive this search's query.
+                if (latestNavigationRequest !== requestedNavigation ||
+                    historyStack[historyStack.length - 1] !== 'global-search') return;
                 const search = document.getElementById('globalDocumentSearch');
                 if (search) {
                     search.value = query;
