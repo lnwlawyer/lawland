@@ -1,4 +1,4 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LawLand — จัดการเมนู</title><style>body{font:16px system-ui,sans-serif;background:#f3f6fa;color:#182338;margin:0;padding:20px}main{max-width:980px;margin:auto}section{background:white;border-radius:12px;padding:20px;margin:16px 0}label{display:block;margin:12px 0 4px}input,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #a9b2c0;border-radius:6px}button{padding:10px 14px;margin:6px 6px 6px 0;border:0;border-radius:6px;background:#1656a7;color:white;cursor:pointer}button:disabled{opacity:.5}article{border-top:1px solid #ddd;padding:12px 0}.muted{color:#5a6576}</style></head><body><main><h1>จัดการเมนู LawLand</h1><p>เพิ่ม แก้ไข และจัดลำดับเมนู โดยคงข้อมูล Google Sheets เดิมไว้ทุกประการ</p><a href="./index.html">กลับหน้าหลัก</a> · <a href="./admin-documents.html">จัดการเอกสาร</a><p id="status" role="status">กำลังตรวจสอบสิทธิ์ Admin…</p><section id="workspace" hidden><h2>เพิ่ม / แก้ไขเมนู</h2><form id="menuForm"><input type="hidden" id="itemId"><input type="hidden" id="itemVersion"><label for="kind">ประเภท</label><select id="kind"><option value="main">เมนูหลัก</option><option value="sub">หมวดหมู่ย่อย</option></select><label for="title">ชื่อเมนู</label><input id="title" required maxlength="120"><label for="parentMenuId">เมนูหลักที่สังกัด (สำหรับหมวดหมู่ย่อย)</label><select id="parentMenuId"><option value="">ไม่ระบุ</option></select><label for="order">ลำดับการแสดงผล (0–9999)</label><input id="order" type="number" min="0" max="9999" required value="100"><button type="submit" id="save">บันทึกเมนู</button><button type="button" id="resetMenuButton">เพิ่มเมนูใหม่</button></form><p class="muted">การแก้ไขเมนูเดิมจะสร้างข้อมูลกำกับใน Firebase ไม่แก้ Google Sheets การเปลี่ยนรหัสหรือย้ายหมวดหมู่ย่อยอาจกระทบตำแหน่งเอกสาร จึงคงรหัสเดิมเสมอ</p></section><section id="inventory" hidden><h2>เมนูหลักและหมวดหมู่ย่อย</h2><p id="count" role="status"></p><div id="items"></div></section></main><script>
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LawLand — จัดการเมนู</title><style>body{font:16px system-ui,sans-serif;background:#f3f6fa;color:#182338;margin:0;padding:20px}main{max-width:980px;margin:auto}section{background:white;border-radius:12px;padding:20px;margin:16px 0}label{display:block;margin:12px 0 4px}input,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #a9b2c0;border-radius:6px}button{padding:10px 14px;margin:6px 6px 6px 0;border:0;border-radius:6px;background:#1656a7;color:white;cursor:pointer}button:disabled{opacity:.5}article{border-top:1px solid #ddd;padding:12px 0}article[draggable=true]{cursor:grab}article.drag-over{outline:2px dashed #1656a7;background:#eef5ff}.warning{color:#8a4b0b}.muted{color:#5a6576}</style></head><body><main><h1>จัดการเมนู LawLand</h1><p>เพิ่ม แก้ไข และจัดลำดับเมนู โดยคงข้อมูล Google Sheets เดิมไว้ทุกประการ</p><a href="./index.html">กลับหน้าหลัก</a> · <a href="./admin-documents.html">จัดการเอกสาร</a><p id="status" role="status">กำลังตรวจสอบสิทธิ์ Admin…</p><section id="workspace" hidden><h2>เพิ่ม / แก้ไขเมนู</h2><form id="menuForm"><input type="hidden" id="itemId"><input type="hidden" id="itemVersion"><label for="kind">ประเภท</label><select id="kind"><option value="main">เมนูหลัก</option><option value="sub">หมวดหมู่ย่อย</option></select><label for="title">ชื่อเมนู</label><input id="title" required maxlength="120"><label for="parentMenuId">เมนูหลักที่สังกัด (สำหรับหมวดหมู่ย่อย)</label><select id="parentMenuId"><option value="">ไม่ระบุ</option></select><label for="order">ลำดับการแสดงผล (0–9999)</label><input id="order" type="number" min="0" max="9999" required value="100"><button type="submit" id="save">บันทึกเมนู</button><button type="button" id="resetMenuButton">เพิ่มเมนูใหม่</button></form><p class="muted">การแก้ไขเมนูเดิมจะสร้างข้อมูลกำกับใน Firebase ไม่แก้ Google Sheets การเปลี่ยนรหัสหรือย้ายหมวดหมู่ย่อยอาจกระทบตำแหน่งเอกสาร จึงคงรหัสเดิมเสมอ</p></section><section id="inventory" hidden><h2>เมนูหลักและหมวดหมู่ย่อย</h2><p class="muted">ลากรายการเพื่อจัดลำดับภายในระดับเดียวกัน หรือใช้ปุ่มขึ้น/ลง · การย้ายหมวดหมู่ใช้ปุ่มแก้ไข · ซ่อนเมนูได้โดยไม่ลบข้อมูล</p><p id="count" role="status"></p><div id="items"></div><h3>รายการที่ซ่อน</h3><div id="hiddenItems"></div></section></main><script>
 (function(){
  const node=document.getElementById('status');
  const initial='กำลังตรวจสอบสิทธิ์ Admin';
@@ -19,28 +19,98 @@
  },8000);
 })();
 </script><script type="module">
-import {mergeMenuCatalog} from './menu-catalog.mjs';
+import {mergeMenuCatalog,duplicateMenuTitle,orderedSiblingIds,reorderSiblingIds} from './menu-catalog.mjs';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-import {getFirestore,collection,doc,getDoc,getDocs,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+import {getFirestore,collection,doc,getDoc,getDocs,query,where,limit,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 const app=initializeApp({apiKey:'AIzaSyD47rhbngXw3LXIsYa97OsKpuBA28c7faw',authDomain:'land-law-ea2bb.firebaseapp.com',projectId:'land-law-ea2bb',appId:'1:857909535391:web:d6bc0679725d5f557a38aa'});
 window.__lawlandMenuSetStage?.('module-loaded');
 const auth=getAuth(app),db=getFirestore(app),status=document.getElementById('status'),workspace=document.getElementById('workspace'),inventory=document.getElementById('inventory'),form=document.getElementById('menuForm');
 const field=id=>document.getElementById(id),API='https://script.google.com/macros/s/AKfycbwG82PSvIQjy7Ujmab4btojXbgHp2ECYJ9Lm4G49rwnSQS-7I4TbQ-tAB9UCi5zKUsZ/exec';
-let authorizedUid=null,authGeneration=0,mainSheets=[],subSheets=[],overrides=[],catalog={mainMenus:[],subMenus:[]};
+let authorizedUid=null,authGeneration=0,mainSheets=[],subSheets=[],overrides=[],catalog={mainMenus:[],subMenus:[]},menuBusy=false;
 async function sheet(name){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);try{const url=new URL(API);url.searchParams.set('sheetName',name);const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error('sheet-http-error');const json=await response.json();if(json.success!==true||!Array.isArray(json.data))throw Error('invalid-sheet');return json.data}finally{clearTimeout(timeout)}}
 function reset(){form.reset();field('itemId').value='';field('itemVersion').value='';field('kind').disabled=false;field('parentMenuId').value='';field('order').value='100';toggleParent()}
 function toggleParent(){field('parentMenuId').disabled=field('kind').value==='main';if(field('kind').value==='main')field('parentMenuId').value=''}
+function menuItem(kind,id,title,order,parent='',hidden=false){
+ const article=document.createElement('article'),caption=document.createElement('strong');
+ caption.textContent=(hidden?'[ซ่อน] ':'')+title+' ('+id+') — ลำดับ '+order;
+ article.append(caption);
+ const button=(label,callback)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=menuBusy;b.addEventListener('click',callback);article.append(b);return b};
+ const edit=()=>{const previous=overrides.find(x=>x.id===id);field('kind').value=kind;field('kind').disabled=true;field('itemId').value=id;field('itemVersion').value=String(previous?.version||0);field('title').value=title;field('order').value=String(order);toggleParent();field('parentMenuId').value=parent;window.scrollTo(0,0)};
+ button('แก้ไข / ย้ายหมวดหมู่',edit);
+ button(hidden?'แสดงเมนู':'ซ่อนเมนู',()=>void changeVisibility(kind,id,title,parent,order,!hidden));
+ if(!hidden){
+  const siblings=orderedSiblingIds(catalog,kind,parent),position=siblings.indexOf(id);
+  button('↑',()=>void moveMenu(kind,id,siblings[position-1],parent)).disabled=menuBusy||position<=0;
+  button('↓',()=>void moveMenu(kind,id,siblings[position+1],parent)).disabled=menuBusy||position>=siblings.length-1;
+  article.draggable=!menuBusy;article.dataset.menuId=id;
+  article.addEventListener('dragstart',event=>{event.dataTransfer.setData('text/plain',JSON.stringify({kind,id,parent}));event.dataTransfer.effectAllowed='move'});
+  article.addEventListener('dragover',event=>{event.preventDefault();article.classList.add('drag-over')});
+  article.addEventListener('dragleave',()=>article.classList.remove('drag-over'));
+  article.addEventListener('drop',event=>{event.preventDefault();article.classList.remove('drag-over');try{const source=JSON.parse(event.dataTransfer.getData('text/plain'));if(source.kind===kind&&source.parent===parent)void moveMenu(kind,source.id,id,parent)}catch{}});
+ }
+ return article;
+}
 function render(){
  catalog=mergeMenuCatalog(mainSheets,subSheets,overrides);
- const parents=field('parentMenuId');parents.replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent='เลือกเมนูหลัก';parents.append(empty);
+ const parents=field('parentMenuId'),selected=parents.value;parents.replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent='เลือกเมนูหลัก';parents.append(empty);
  for(const m of catalog.mainMenus){if(['settings','about'].includes(m.menuId))continue;const opt=document.createElement('option');opt.value=m.menuId;opt.textContent=m.menuTitle;parents.append(opt)}
- const rows=field('items');rows.replaceChildren();
- function item(kind,id,title,order,parent=''){const article=document.createElement('article'),caption=document.createElement('strong'),edit=document.createElement('button');caption.textContent=title+' ('+id+') — ลำดับ '+order;edit.type='button';edit.textContent='แก้ไข / จัดลำดับ';edit.addEventListener('click',()=>{const previous=overrides.find(x=>x.id===id);field('kind').value=kind;field('kind').disabled=true;field('itemId').value=id;field('itemVersion').value=String(previous?.version||0);field('title').value=title;field('order').value=String(order);toggleParent();field('parentMenuId').value=parent;window.scrollTo(0,0)});article.append(caption,edit);rows.append(article)}
- for(const m of catalog.mainMenus){if(['settings','about'].includes(m.menuId))continue;item('main',m.menuId,m.menuTitle,m.menuOrder??100)}
- for(const c of catalog.subMenus)item('sub',c.subMenuId,c.subMenuTitle,c.subMenuOrder??100,c.parentMenuId);
- field('count').textContent='เมนูหลัก '+catalog.mainMenus.length+' รายการ · หมวดหมู่ย่อย '+catalog.subMenus.length+' รายการ';
+ if(catalog.mainMenus.some(x=>x.menuId===selected))parents.value=selected;
+ const rows=field('items'),hiddenRows=field('hiddenItems');rows.replaceChildren();hiddenRows.replaceChildren();
+ for(const m of catalog.mainMenus){if(['settings','about'].includes(m.menuId))continue;rows.append(menuItem('main',m.menuId,m.menuTitle,m.menuOrder??100))}
+ for(const c of catalog.subMenus)rows.append(menuItem('sub',c.subMenuId,c.subMenuTitle,c.subMenuOrder??100,c.parentMenuId));
+ for(const x of overrides.filter(x=>x.active===false)){const original=x.kind==='main'?mainSheets.find(m=>m.menuId===x.id):subSheets.find(m=>m.subMenuId===x.id);hiddenRows.append(menuItem(x.kind,x.id,x.title||original?.menuTitle||original?.subMenuTitle||x.id,x.order,x.parentMenuId,true))}
+ field('count').textContent='เมนูหลัก '+catalog.mainMenus.length+' รายการ · หมวดหมู่ย่อย '+catalog.subMenus.length+' รายการ · ซ่อน '+overrides.filter(x=>x.active===false).length+' รายการ';
 }
+async function verifiedActor(){
+ const actor=auth.currentUser;
+ if(!actor||actor.uid!==authorizedUid)throw Error('not-authenticated');
+ const token=await actor.getIdTokenResult(true);
+ if(token.claims.admin!==true||actor.uid!==authorizedUid)throw Error('permission-denied');
+ return actor;
+}
+async function saveMenuOverrides(changes){
+ if(menuBusy||changes.length===0)return;
+ const actor=await verifiedActor(),generation=authGeneration;menuBusy=true;field('save').disabled=true;
+ try{
+  await runTransaction(db,async tx=>{
+   const snapshots=[];
+   for(const change of changes)snapshots.push(await tx.get(doc(db,'menuOverrides',change.id)));
+   for(let i=0;i<changes.length;i++){
+    const change=changes[i],old=snapshots[i].exists()?snapshots[i].data():null;
+    const expected=overrides.find(x=>x.id===change.id);
+    if((old?.version||0)!==(expected?.version||0))throw Error('conflict-reload-required');
+    if(old&&old.kind!==change.kind)throw Error('kind-mismatch');
+    tx.set(doc(db,'menuOverrides',change.id),{kind:change.kind,title:change.title,parentMenuId:change.parentMenuId,order:change.order,active:change.active,version:(old?.version||0)+1,updatedBy:actor.uid,updatedAt:serverTimestamp()});
+   }
+  });
+  if(generation===authGeneration&&auth.currentUser?.uid===actor.uid){await reload(actor.uid,generation);status.textContent='บันทึกการจัดการเมนูสำเร็จ'}
+ }catch(error){status.textContent='บันทึกไม่สำเร็จ: '+(error.code||error.message||'unknown')+' โปรดโหลดหน้าใหม่ก่อนลองอีกครั้ง'}
+ finally{menuBusy=false;field('save').disabled=false;if(generation===authGeneration)render()}
+}
+function existingMenu(kind,id){
+ const override=overrides.find(x=>x.id===id),sheet=kind==='main'?mainSheets.find(x=>x.menuId===id):subSheets.find(x=>x.subMenuId===id);
+ return {id,kind,title:override?.title||(kind==='main'?sheet?.menuTitle:sheet?.subMenuTitle)||id,parentMenuId:kind==='main'?'':override?.parentMenuId||sheet?.parentMenuId||'',order:override?.order??(kind==='main'?sheet?.menuOrder:sheet?.subMenuOrder)??100,active:override?.active??true};
+}
+async function moveMenu(kind,dragged,target,parent){
+ if(!target||menuBusy)return;
+ const ids=orderedSiblingIds(catalog,kind,parent),ordered=reorderSiblingIds(ids,dragged,target);
+ if(ids.every((x,i)=>x===ordered[i]))return;
+ // Transactionally version-check every affected menu. Never touch original Sheets.
+ await saveMenuOverrides(ordered.map((id,i)=>({...existingMenu(kind,id),order:i+1})));
+}
+async function changeVisibility(kind,id,title,parent,order,active){
+ if(menuBusy)return;
+ if(['settings','about'].includes(id))return;
+ if(!active&&kind==='main'&&catalog.subMenus.some(x=>x.parentMenuId===id)){status.textContent='ต้องย้ายหรือซ่อนหมวดหมู่ย่อยก่อนซ่อนเมนูหลัก';return}
+ if(!active&&kind==='sub'){
+  try{const actor=await verifiedActor();const docs=await getDocs(query(collection(db,'managedDocuments'),where('category','==',id),limit(1)));if(actor.uid!==authorizedUid)return;
+   if(!docs.empty){status.textContent='หมวดหมู่นี้มีเอกสาร Firebase อยู่ กรุณาย้ายเอกสารก่อนซ่อนหมวดหมู่';return}
+  }catch(error){status.textContent='ตรวจสอบเอกสารที่ผูกกับหมวดหมู่ไม่ได้ จึงยังไม่ซ่อนเมนู';return}
+ }
+ await saveMenuOverrides([{...existingMenu(kind,id),active}]);
+}
+
 async function reload(uid,generation){
  const [m,s]=await Promise.all([sheet('MainMenu'),sheet('SubMenu')]);
  if(auth.currentUser?.uid!==uid||generation!==authGeneration)return;
@@ -49,7 +119,7 @@ async function reload(uid,generation){
  catch(error){field('save').disabled=true;status.textContent='เปิดดูเมนูเดิมได้ แต่ยังไม่สามารถอ่าน/บันทึกเมนู Firebase: กรุณาตรวจสอบ Firestore Rules ในโปรเจ็กต์ land-law-ea2bb ('+(error.code||'unknown')+')';}
  render();
 }
-form.addEventListener('submit',async e=>{e.preventDefault();const actor=auth.currentUser,uid=authorizedUid;if(!actor||actor.uid!==uid)return;const generation=authGeneration,kind=field('kind').value,title=field('title').value.trim(),parentMenuId=kind==='sub'?field('parentMenuId').value:'',order=Number(field('order').value),existingId=field('itemId').value,id=existingId||'custom-'+crypto.randomUUID();if(!title||title.length>120||!Number.isInteger(order)||order<0||order>9999||(kind==='sub'&&!catalog.mainMenus.some(x=>x.menuId===parentMenuId))){status.textContent='ตรวจสอบชื่อเมนู ลำดับ และเมนูหลักที่สังกัด';return}const expected=Number(field('itemVersion').value);field('save').disabled=true;try{const token=await actor.getIdTokenResult(true);if(token.claims.admin!==true||auth.currentUser?.uid!==uid||generation!==authGeneration)throw Error('permission-denied');await runTransaction(db,async tx=>{const ref=doc(db,'menuOverrides',id),snapshot=await tx.get(ref),old=snapshot.exists()?snapshot.data():null;if(old&&old.version!==expected)throw Error('stale-menu-reload-required');if(!old&&expected!==0)throw Error('stale-menu-reload-required');if(old&&old.kind!==kind)throw Error('menu-kind-immutable');tx.set(ref,{kind,title,parentMenuId,order,active:true,version:(old?.version||0)+1,updatedBy:actor.uid,updatedAt:serverTimestamp()})});if(auth.currentUser?.uid!==uid||generation!==authGeneration)return;await reload(uid,generation);reset();status.textContent='บันทึกเมนูสำเร็จ';}catch(error){status.textContent='ไม่สามารถบันทึกเมนูได้: '+(error.code||error.message||'unknown')+' โปรดตรวจสอบว่าเผยแพร่ Firestore Rules สำหรับเมนูแล้ว';}finally{field('save').disabled=false}});
+form.addEventListener('submit',async e=>{e.preventDefault();const actor=auth.currentUser,uid=authorizedUid;if(!actor||actor.uid!==uid)return;const generation=authGeneration,kind=field('kind').value,title=field('title').value.trim(),parentMenuId=kind==='sub'?field('parentMenuId').value:'',order=Number(field('order').value),existingId=field('itemId').value,id=existingId||'custom-'+crypto.randomUUID();if(duplicateMenuTitle(catalog,kind,title,parentMenuId,existingId)){status.textContent='มีชื่อเมนูซ้ำในระดับเดียวกัน กรุณาใช้ชื่ออื่น';return}if(!title||title.length>120||!Number.isInteger(order)||order<0||order>9999||(kind==='sub'&&!catalog.mainMenus.some(x=>x.menuId===parentMenuId))){status.textContent='ตรวจสอบชื่อเมนู ลำดับ และเมนูหลักที่สังกัด';return}const expected=Number(field('itemVersion').value);field('save').disabled=true;try{const token=await actor.getIdTokenResult(true);if(token.claims.admin!==true||auth.currentUser?.uid!==uid||generation!==authGeneration)throw Error('permission-denied');await runTransaction(db,async tx=>{const ref=doc(db,'menuOverrides',id),snapshot=await tx.get(ref),old=snapshot.exists()?snapshot.data():null;if(old&&old.version!==expected)throw Error('stale-menu-reload-required');if(!old&&expected!==0)throw Error('stale-menu-reload-required');if(old&&old.kind!==kind)throw Error('menu-kind-immutable');tx.set(ref,{kind,title,parentMenuId,order,active:true,version:(old?.version||0)+1,updatedBy:actor.uid,updatedAt:serverTimestamp()})});if(auth.currentUser?.uid!==uid||generation!==authGeneration)return;await reload(uid,generation);reset();status.textContent='บันทึกเมนูสำเร็จ';}catch(error){status.textContent='ไม่สามารถบันทึกเมนูได้: '+(error.code||error.message||'unknown')+' โปรดตรวจสอบว่าเผยแพร่ Firestore Rules สำหรับเมนูแล้ว';}finally{field('save').disabled=false}});
 field('kind').addEventListener('change',toggleParent);field('resetMenuButton').addEventListener('click',reset);
 window.__lawlandMenuSetStage?.('auth-listening');
 onAuthStateChanged(auth,async user=>{window.__lawlandMenuSetStage?.('auth-event');
