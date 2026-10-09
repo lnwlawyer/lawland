@@ -1,11 +1,22 @@
 <!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LawLand — จัดการเมนู</title><style>body{font:16px system-ui,sans-serif;background:#f3f6fa;color:#182338;margin:0;padding:20px}main{max-width:980px;margin:auto}section{background:white;border-radius:12px;padding:20px;margin:16px 0}label{display:block;margin:12px 0 4px}input,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #a9b2c0;border-radius:6px}button{padding:10px 14px;margin:6px 6px 6px 0;border:0;border-radius:6px;background:#1656a7;color:white;cursor:pointer}button:disabled{opacity:.5}article{border-top:1px solid #ddd;padding:12px 0}.muted{color:#5a6576}</style></head><body><main><h1>จัดการเมนู LawLand</h1><p>เพิ่ม แก้ไข และจัดลำดับเมนู โดยคงข้อมูล Google Sheets เดิมไว้ทุกประการ</p><a href="./index.html">กลับหน้าหลัก</a> · <a href="./admin-documents.html">จัดการเอกสาร</a><p id="status" role="status">กำลังตรวจสอบสิทธิ์ Admin…</p><section id="workspace" hidden><h2>เพิ่ม / แก้ไขเมนู</h2><form id="menuForm"><input type="hidden" id="itemId"><input type="hidden" id="itemVersion"><label for="kind">ประเภท</label><select id="kind"><option value="main">เมนูหลัก</option><option value="sub">หมวดหมู่ย่อย</option></select><label for="title">ชื่อเมนู</label><input id="title" required maxlength="120"><label for="parentMenuId">เมนูหลักที่สังกัด (สำหรับหมวดหมู่ย่อย)</label><select id="parentMenuId"><option value="">ไม่ระบุ</option></select><label for="order">ลำดับการแสดงผล (0–9999)</label><input id="order" type="number" min="0" max="9999" required value="100"><button type="submit" id="save">บันทึกเมนู</button><button type="button" id="reset">เพิ่มเมนูใหม่</button></form><p class="muted">การแก้ไขเมนูเดิมจะสร้างข้อมูลกำกับใน Firebase ไม่แก้ Google Sheets การเปลี่ยนรหัสหรือย้ายหมวดหมู่ย่อยอาจกระทบตำแหน่งเอกสาร จึงคงรหัสเดิมเสมอ</p></section><section id="inventory" hidden><h2>เมนูหลักและหมวดหมู่ย่อย</h2><p id="count" role="status"></p><div id="items"></div></section></main><script>
 (function(){
  const node=document.getElementById('status');
- let ready=false;
- window.__lawlandMenuBooted=function(){ready=true};
- window.addEventListener('error',function(event){if(ready)return;node.textContent='ไม่สามารถเริ่มหน้าจัดการเมนูได้ กรุณารีเฟรชหน้า ตรวจสอบการเชื่อมต่อ หรือเปิดหน้าหลักเพื่อเข้าสู่ระบบอีกครั้ง';console.error('Menu startup error',event.message)});
- window.addEventListener('unhandledrejection',function(event){if(ready)return;node.textContent='เกิดข้อผิดพลาดระหว่างเริ่มระบบ กรุณารีเฟรชหน้าและลองอีกครั้ง'});
- setTimeout(function(){if(node.textContent.includes('กำลังตรวจสอบสิทธิ์'))node.textContent='การตรวจสอบสิทธิ์ใช้เวลานานผิดปกติ กรุณารีเฟรชหน้า หรือเข้าสู่ระบบที่หน้าหลักแล้วกลับมาใหม่'},12000);
+ const initial='กำลังตรวจสอบสิทธิ์ Admin';
+ window.__lawlandMenuStage='initial';
+ window.__lawlandMenuSetStage=function(stage){window.__lawlandMenuStage=stage};
+ window.addEventListener('error',function(event){
+  if(window.__lawlandMenuStage==='ready')return;
+  node.textContent='เริ่มระบบจัดการเมนูไม่สำเร็จ ('+(event.message||'JavaScript error')+') กรุณาลองเปิดหน้าใหม่';
+ });
+ window.addEventListener('unhandledrejection',function(event){
+  if(window.__lawlandMenuStage==='ready')return;
+  node.textContent='เริ่มระบบจัดการเมนูไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วเปิดหน้าใหม่';
+ });
+ setTimeout(function(){
+  if(node.textContent.includes(initial)){
+   node.textContent='ไม่สามารถตรวจสอบสิทธิ์ Admin ได้ภายใน 8 วินาที อาจโหลด Firebase ไม่สำเร็จ กรุณาเปิดหน้าหลัก เข้าสู่ระบบ และกลับมาหน้านี้อีกครั้ง';
+  }
+ },8000);
 })();
 </script><script type="module">
 import {mergeMenuCatalog} from './menu-catalog.mjs';
@@ -13,7 +24,7 @@ import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
 import {getFirestore,collection,doc,getDoc,getDocs,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 const app=initializeApp({apiKey:'AIzaSyD47rhbngXw3LXIsYa97OsKpuBA28c7faw',authDomain:'land-law-ea2bb.firebaseapp.com',projectId:'land-law-ea2bb',appId:'1:857909535391:web:d6bc0679725d5f557a38aa'});
-window.__lawlandMenuBooted?.();
+window.__lawlandMenuSetStage?.('module-loaded');
 const auth=getAuth(app),db=getFirestore(app),status=document.getElementById('status'),workspace=document.getElementById('workspace'),inventory=document.getElementById('inventory'),form=document.getElementById('menuForm');
 const field=id=>document.getElementById(id),API='https://script.google.com/macros/s/AKfycbwG82PSvIQjy7Ujmab4btojXbgHp2ECYJ9Lm4G49rwnSQS-7I4TbQ-tAB9UCi5zKUsZ/exec';
 let authorizedUid=null,authGeneration=0,mainSheets=[],subSheets=[],overrides=[],catalog={mainMenus:[],subMenus:[]};
@@ -40,5 +51,7 @@ async function reload(uid,generation){
 }
 form.addEventListener('submit',async e=>{e.preventDefault();const actor=auth.currentUser,uid=authorizedUid;if(!actor||actor.uid!==uid)return;const generation=authGeneration,kind=field('kind').value,title=field('title').value.trim(),parentMenuId=kind==='sub'?field('parentMenuId').value:'',order=Number(field('order').value),existingId=field('itemId').value,id=existingId||'custom-'+crypto.randomUUID();if(!title||title.length>120||!Number.isInteger(order)||order<0||order>9999||(kind==='sub'&&!catalog.mainMenus.some(x=>x.menuId===parentMenuId))){status.textContent='ตรวจสอบชื่อเมนู ลำดับ และเมนูหลักที่สังกัด';return}const expected=Number(field('itemVersion').value);field('save').disabled=true;try{const token=await actor.getIdTokenResult(true);if(token.claims.admin!==true||auth.currentUser?.uid!==uid||generation!==authGeneration)throw Error('permission-denied');await runTransaction(db,async tx=>{const ref=doc(db,'menuOverrides',id),snapshot=await tx.get(ref),old=snapshot.exists()?snapshot.data():null;if(old&&old.version!==expected)throw Error('stale-menu-reload-required');if(!old&&expected!==0)throw Error('stale-menu-reload-required');if(old&&old.kind!==kind)throw Error('menu-kind-immutable');tx.set(ref,{kind,title,parentMenuId,order,active:true,version:(old?.version||0)+1,updatedBy:actor.uid,updatedAt:serverTimestamp()})});if(auth.currentUser?.uid!==uid||generation!==authGeneration)return;await reload(uid,generation);reset();status.textContent='บันทึกเมนูสำเร็จ';}catch(error){status.textContent='ไม่สามารถบันทึกเมนูได้: '+(error.code||error.message||'unknown')+' โปรดตรวจสอบว่าเผยแพร่ Firestore Rules สำหรับเมนูแล้ว';}finally{field('save').disabled=false}});
 field('kind').addEventListener('change',toggleParent);field('reset').addEventListener('click',reset);
-onAuthStateChanged(auth,async user=>{const generation=++authGeneration;authorizedUid=null;workspace.hidden=inventory.hidden=true;field('items').replaceChildren();mainSheets=[];subSheets=[];overrides=[];reset();if(!user){status.textContent='กรุณาเข้าสู่ระบบ Google ที่หน้าหลักก่อน';return}try{const token=await user.getIdTokenResult(true);if(generation!==authGeneration||auth.currentUser?.uid!==user.uid)return;if(token.claims.admin!==true){status.textContent='บัญชีนี้ไม่มีสิทธิ์ Admin';return}authorizedUid=user.uid;await reload(user.uid,generation);if(generation!==authGeneration)return;workspace.hidden=inventory.hidden=false;if(!field('save').disabled)status.textContent='พร้อมจัดการเมนู';}catch(error){if(generation===authGeneration)status.textContent='โหลดข้อมูลเมนูไม่สำเร็จ: '+(error.code||error.message||'unknown')+' โปรดตรวจสอบการเชื่อมต่อ Google Sheets และ Firebase'}},error=>{status.textContent='ตรวจสอบสถานะเข้าสู่ระบบไม่สำเร็จ: '+(error.code||'unknown')});
+window.__lawlandMenuSetStage?.('auth-listening');
+onAuthStateChanged(auth,async user=>{window.__lawlandMenuSetStage?.('auth-event');
+const generation=++authGeneration;authorizedUid=null;workspace.hidden=inventory.hidden=true;field('items').replaceChildren();mainSheets=[];subSheets=[];overrides=[];reset();if(!user){status.textContent='กรุณาเข้าสู่ระบบ Google ที่หน้าหลักก่อน';return}try{const token=await user.getIdTokenResult(true);if(generation!==authGeneration||auth.currentUser?.uid!==user.uid)return;if(token.claims.admin!==true){status.textContent='บัญชีนี้ไม่มีสิทธิ์ Admin';return}authorizedUid=user.uid;await reload(user.uid,generation);if(generation!==authGeneration)return;workspace.hidden=inventory.hidden=false;window.__lawlandMenuSetStage?.('ready');if(!field('save').disabled)status.textContent='พร้อมจัดการเมนู';}catch(error){if(generation===authGeneration)status.textContent='โหลดข้อมูลเมนูไม่สำเร็จ: '+(error.code||error.message||'unknown')+' โปรดตรวจสอบการเชื่อมต่อ Google Sheets และ Firebase'}},error=>{status.textContent='ตรวจสอบสถานะเข้าสู่ระบบไม่สำเร็จ: '+(error.code||'unknown')});
 </script></body></html>
