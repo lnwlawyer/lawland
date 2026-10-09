@@ -737,7 +737,7 @@
         // Import Firebase Functions
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, getDocs, collection, query, where, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, getDocs, collection, query, where, limit, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Register a same-origin worker; avoid unsupported blob service-worker URLs.
         if ('serviceWorker' in navigator) {
@@ -1443,7 +1443,7 @@
             firebaseSearchLoadState = 'loading';
             firebaseSearchPromise = (async () => {
                 try {
-                    const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), where('status', '==', 'published')));
+                    const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), where('status', '==', 'published'), limit(100)));
                     if (session !== authSessionGeneration || auth.currentUser?.uid !== uid) return;
                     firebaseSearchDocuments = snapshot.docs.map(item => item.data()).filter(item => item.status === 'published');
                     firebaseSearchLoadState = 'ready';
@@ -1505,7 +1505,7 @@
             count.textContent = 'พบ ' + results.length + ' รายการ · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด' +
                 (globalSearchFailedSheets.size ? ' · โหลดไม่สำเร็จ ' + globalSearchFailedSheets.size + ' หมวด (ลองโหลดอีกครั้งได้)' :
                     readySheets < totalSheets ? ' (ผลการค้นหายังไม่ครบทุกหมวด)' : '') +
-                (firebaseSearchLoadState === 'ready' ? ' · รวมเอกสาร Firebase แล้ว' : firebaseSearchLoadState === 'error' ? ' · โหลด Firebase ไม่สำเร็จ' : ' · กำลังโหลด Firebase');
+                (firebaseSearchLoadState === 'ready' ? ' · รวมเอกสาร Firebase ชุดแรก (สูงสุด 100 รายการ)' : firebaseSearchLoadState === 'error' ? ' · โหลด Firebase ไม่สำเร็จ' : ' · กำลังโหลด Firebase');
             if (!results.length) {
                 const p = document.createElement('p');
                 p.textContent = globalSearchFailedSheets.size ? 'ยังไม่พบเอกสารในหมวดที่โหลดสำเร็จ กรุณาลองโหลดหมวดที่ไม่สำเร็จอีกครั้ง' :
@@ -2009,7 +2009,7 @@
                     const uid = auth.currentUser?.uid;
                     void (async () => {
                         try {
-                            const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), where('status', '==', 'published')));
+                            const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), where('status', '==', 'published'), limit(100)));
                             if (navigationRequest !== latestNavigationRequest || session !== authSessionGeneration || auth.currentUser?.uid !== uid || !rows.isConnected) return;
                             const docs = snapshot.docs.map(item => item.data()).filter(item => item.status === 'published');
                             const render = () => {
@@ -2040,7 +2040,7 @@
                                     }
                                     rows.append(article);
                                 }
-                                status.textContent = 'พบ ' + matches.length + ' รายการ' + (matches.length > 200 ? ' · แสดง 200 รายการแรก' : '');
+                                status.textContent = 'พบ ' + matches.length + ' รายการในชุดแรก (โหลด Firebase สูงสุด 100 รายการ)' + (matches.length > 200 ? ' · แสดง 200 รายการแรก' : '');
                             };
                             filter.addEventListener('input', render);
                             render();
