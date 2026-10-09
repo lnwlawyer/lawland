@@ -865,6 +865,9 @@
                 latestNavigationRequest++;
                 historyStack = [];
                 documentData = Object.create(null);
+                firebaseSearchDocuments = [];
+                firebaseSearchLoadState = 'pending';
+                firebaseSearchPromise = null;
             loadedDocumentSheets = new Set();
             pendingDocumentSheets.clear();
             refreshingDocumentSheets.clear();
@@ -1430,6 +1433,29 @@
 
         // Search document metadata across every already-loaded sheet. Google Drive
         // PDF contents are not available for cross-origin full-text indexing.
+        let firebaseSearchDocuments = [];
+        let firebaseSearchLoadState = 'pending';
+        let firebaseSearchPromise = null;
+        async function loadFirebaseSearchDocuments() {
+            if (!contentDb || firebaseSearchPromise || firebaseSearchLoadState === 'ready') return firebaseSearchPromise;
+            const session = authSessionGeneration;
+            const uid = auth.currentUser?.uid;
+            firebaseSearchLoadState = 'loading';
+            firebaseSearchPromise = (async () => {
+                try {
+                    const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), where('status', '==', 'published')));
+                    if (session !== authSessionGeneration || auth.currentUser?.uid !== uid) return;
+                    firebaseSearchDocuments = snapshot.docs.map(item => item.data()).filter(item => item.status === 'published');
+                    firebaseSearchLoadState = 'ready';
+                } catch {
+                    if (session === authSessionGeneration) firebaseSearchLoadState = 'error';
+                } finally {
+                    firebaseSearchPromise = null;
+                    if (session === authSessionGeneration && document.getElementById('globalDocumentSearch')) renderGlobalDocumentSearch();
+                }
+            })();
+            return firebaseSearchPromise;
+        }
         function renderGlobalDocumentSearch() {
             const input = document.getElementById('globalDocumentSearch');
             const list = document.getElementById('globalDocumentResults');
@@ -1442,6 +1468,7 @@
             list.replaceChildren();
             const retry = document.getElementById('retryGlobalSearch');
             if (retry) retry.hidden = globalSearchFailedSheets.size === 0;
+            if (firebaseSearchLoadState === 'pending') void loadFirebaseSearchDocuments();
             if (!query) {
                 count.textContent = 'พิมพ์ชื่อเอกสารเพื่อค้นหาทุกหมวด · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด';
                 return;
@@ -1464,9 +1491,21 @@
                     results.push({ name: String(doc.docName || 'เอกสาร'), url, category: categoryTitles.get(subId) || subId });
                 }
             }
+            for (const item of firebaseSearchDocuments) {
+                if (item.status !== 'published') continue;
+                if (!matchesSearchTerms(String(item.title || '') + ' ' + String(item.category || ''), query)) continue;
+                if (typeof item.url !== 'string' || !/^https:\/\//i.test(item.url)) continue;
+                const url = safeExternalUrl(item.url);
+                if (!url) continue;
+                const key = 'firebase' + '\\u0000' + url;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                results.push({ name: String(item.title || 'เอกสาร'), url, category: 'Firebase · ' + String(item.category || 'ไม่ระบุหมวด') });
+            }
             count.textContent = 'พบ ' + results.length + ' รายการ · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด' +
                 (globalSearchFailedSheets.size ? ' · โหลดไม่สำเร็จ ' + globalSearchFailedSheets.size + ' หมวด (ลองโหลดอีกครั้งได้)' :
-                    readySheets < totalSheets ? ' (ผลการค้นหายังไม่ครบทุกหมวด)' : '');
+                    readySheets < totalSheets ? ' (ผลการค้นหายังไม่ครบทุกหมวด)' : '') +
+                (firebaseSearchLoadState === 'ready' ? ' · รวมเอกสาร Firebase แล้ว' : firebaseSearchLoadState === 'error' ? ' · โหลด Firebase ไม่สำเร็จ' : ' · กำลังโหลด Firebase');
             if (!results.length) {
                 const p = document.createElement('p');
                 p.textContent = globalSearchFailedSheets.size ? 'ยังไม่พบเอกสารในหมวดที่โหลดสำเร็จ กรุณาลองโหลดหมวดที่ไม่สำเร็จอีกครั้ง' :
