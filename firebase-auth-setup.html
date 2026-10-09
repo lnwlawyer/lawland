@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>LawLand — ทดสอบบัญชี Firebase ใหม่</title>
+<style>
+body{font-family:system-ui,"Noto Sans Thai",sans-serif;background:#f4f6fa;color:#17253b;margin:0;padding:24px}
+main{max-width:600px;margin:8vh auto;background:white;padding:28px;border-radius:16px;box-shadow:0 6px 28px #1a36521a}
+h1{font-size:1.4rem}button{background:#165cbb;color:white;border:0;padding:12px 18px;border-radius:8px;cursor:pointer;font-size:1rem}
+button:disabled{opacity:.6;cursor:wait}button.secondary{background:#5a6475}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf2f8;padding:14px;border-radius:8px}
+.note{font-size:.94rem;color:#526079}#status{margin:16px 0}a{color:#165cbb}
+</style>
+</head>
+<body>
+<main>
+<h1>LawLand — ทดสอบเข้าสู่ระบบ Firebase ใหม่</h1>
+<p>หน้านี้เชื่อมต่อเฉพาะ Firebase Project <strong>land-law-ea2bb</strong> เพื่อสร้างบัญชี Google ครั้งแรก โดยไม่เปลี่ยนระบบเข้าสู่ระบบหลัก และไม่เขียนข้อมูลลง Firestore</p>
+<p class="note">ใช้บัญชี Google ที่ต้องการให้เป็น Admin เท่านั้น ตรวจสอบ URL ว่าอยู่บน lnwlawyer.github.io ก่อนเข้าสู่ระบบ อย่าส่งรหัสผ่านหรือ ID Token ให้ใคร</p>
+<button id="login" disabled>เข้าสู่ระบบด้วย Google</button>
+<button id="logout" class="secondary" hidden>ออกจากระบบ</button>
+<p id="status" role="status" aria-live="polite">กำลังเตรียม Firebase…</p>
+<pre id="account" hidden></pre>
+<p class="note">หลังเข้าสู่ระบบสำเร็จ ให้เปิด Firebase Console → Authentication → Users ของโปรเจ็กต์ land-law-ea2bb เพื่อตรวจสอบบัญชี และส่งเฉพาะ UID กลับมาในแชท</p>
+<p><a href="./index.html">กลับไป LawLand</a></p>
+</main>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+const config={
+ apiKey:"AIzaSyD47rhbngXw3LXIsYa97OsKpuBA28c7faw",
+ authDomain:"land-law-ea2bb.firebaseapp.com",
+ projectId:"land-law-ea2bb",
+ storageBucket:"land-law-ea2bb.firebasestorage.app",
+ messagingSenderId:"857909535391",
+ appId:"1:857909535391:web:d6bc0679725d5f557a38aa"
+};
+const login=document.getElementById("login");
+const logout=document.getElementById("logout");
+const status=document.getElementById("status");
+const account=document.getElementById("account");
+const auth=getAuth(initializeApp(config));
+const provider=new GoogleAuthProvider();
+provider.setCustomParameters({prompt:"select_account"});
+onAuthStateChanged(auth,user=>{
+ login.disabled=false;login.hidden=!!user;logout.hidden=!user;
+ if(user){
+  status.textContent="เข้าสู่ระบบ Firebase ใหม่สำเร็จ";
+  account.hidden=false;
+  account.textContent="Firebase Project: "+config.projectId+"\nUID: "+user.uid+"\nอีเมล: "+(user.email||"ไม่ระบุ")+"\nสถานะ: User (ยังไม่ได้กำหนดสิทธิ์ Admin)";
+ }else{
+  status.textContent="ยังไม่ได้เข้าสู่ระบบ Firebase ใหม่";
+  account.hidden=true;account.textContent="";
+ }
+},error=>{login.disabled=false;status.textContent="ตรวจสอบสถานะเข้าสู่ระบบไม่สำเร็จ: "+error.code});
+login.addEventListener("click",async()=>{
+ login.disabled=true;status.textContent="กำลังเปิดหน้าต่าง Google…";
+ try{await signInWithPopup(auth,provider)}
+ catch(e){status.textContent="เข้าสู่ระบบไม่สำเร็จ ("+(e.code||"unknown")+") โปรดตรวจสอบ Authorized domains และการอนุญาตหน้าต่างป๊อปอัป";login.disabled=false}
+});
+logout.addEventListener("click",async()=>{
+ logout.disabled=true;
+ try{await signOut(auth)}catch(e){status.textContent="ออกจากระบบไม่สำเร็จ: "+e.code}
+ finally{logout.disabled=false}
+});
+</script>
+</body>
+</html>
