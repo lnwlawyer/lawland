@@ -16,5 +16,5 @@ test('About draft is Admin-only and locally stored', () => {
  assert.match(html, /if \(!verifiedAdmin \|\| !auth\.currentUser\) return;/);
  assert.match(html, /localStorage\.setItem\(ABOUT_DRAFT_PREFIX \+ auth\.currentUser\.uid/);
  assert.match(html, /escapeHtml\(aboutInfo\.name\)/);
- assert.match(html, /ยังไม่เผยแพร่ข้อมูลให้ผู้ใช้คนอื่น/);
+ assert.match(html, /บันทึกฉบับร่างไว้ในเบราว์เซอร์/);
 });
