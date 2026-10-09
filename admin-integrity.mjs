@@ -36,3 +36,15 @@ export function summarizeFindings(findings){
  for(const finding of findings){if(finding.severity==='error')result.errors++;else result.warnings++;result.byType[finding.type]=(result.byType[finding.type]||0)+1}
  return result;
 }
+
+export function exportAuditCsv(findings,meta={}){
+ const cell=value=>{
+  const raw=String(value??'');
+  // Neutralize spreadsheet formulas, including leading whitespace/control characters.
+  const safe=/^[\s\u0000-\u001f]*[=+@-]/u.test(raw)?"'"+raw:raw;
+  return '"'+safe.replaceAll('"','""')+'"';
+ };
+ const rows=[['severity','type','id','message'],...findings.map(x=>[x.severity,x.type,x.id,x.message])];
+ const prefix=['# LawLand integrity audit (read-only)','# Firebase complete: '+Boolean(meta.firebaseComplete),'# Sheets complete: '+Boolean(meta.sheetsComplete),'# Sheets requested: '+Boolean(meta.sheetsRequested)];
+ return '\uFEFF'+prefix.join('\r\n')+'\r\n'+rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+}
