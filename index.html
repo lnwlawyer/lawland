@@ -1030,7 +1030,7 @@
             applyTheme(savedTheme);
         }
 
-        async function fetchData(sheetName) {
+        async function fetchData(sheetName, { notifyOnError = true } = {}) {
             if (WEB_APP_URL === 'ให้ใส่_URL_ของ_WEB_APP_ที่คุณได้มาที่นี่') {
                 throw new Error("WEB_APP_URL is not configured.");
             }
@@ -1061,7 +1061,7 @@
                 return result.data;
             } catch (error) {
                 console.error(`Error fetching data for sheet ${sheetName}:`, error);
-                showMessage(`ไม่สามารถโหลดข้อมูลชีท ${sheetName} ได้`, 'error');
+                if (notifyOnError) showMessage(`ไม่สามารถโหลดข้อมูลชีท ${sheetName} ได้`, 'error');
                 throw error; // Re-throw the error to be caught by the caller
             }
         }
@@ -1531,7 +1531,7 @@
             const cacheGeneration = documentCacheGeneration;
             if (loadedDocumentSheets.has(sheetName)) return Promise.resolve();
             if (pendingDocumentSheets.has(sheetName)) return pendingDocumentSheets.get(sheetName);
-            const task = fetchData(sheetName).then(docs => {
+            const task = fetchData(sheetName, { notifyOnError: false }).then(docs => {
                 if (session !== authSessionGeneration || cacheGeneration !== documentCacheGeneration || loadedDocumentSheets.has(sheetName)) return;
                 loadedDocumentSheets.add(sheetName);
                 docs.forEach(doc => {
