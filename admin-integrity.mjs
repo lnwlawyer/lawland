@@ -14,6 +14,8 @@ export function auditCatalog(mainMenus,subMenus,overrides,documents){
  }
  const hidden=new Set(overrides.filter(x=>x.active===false).map(x=>x.id));
  for(const doc of documents){
+  // Trashed records are intentionally outside the active navigation catalog.
+  if(doc.status==='trashed')continue;
   const category=String(doc.category||'');
   if(!category)findings.push({severity:'warning',type:'uncategorized-document',id:doc.id,message:'เอกสารยังไม่กำหนดหมวดหมู่: '+String(doc.title||doc.id)});
   else if(hidden.has(category))findings.push({severity:'error',type:'hidden-document-category',id:doc.id,message:'เอกสารอยู่ในหมวดหมู่ที่ซ่อน: '+String(doc.title||doc.id)});
@@ -45,6 +47,23 @@ export function exportAuditCsv(findings,meta={}){
   return '"'+safe.replaceAll('"','""')+'"';
  };
  const rows=[['severity','type','id','message'],...findings.map(x=>[x.severity,x.type,x.id,x.message])];
- const prefix=['# LawLand integrity audit (read-only)','# Firebase complete: '+Boolean(meta.firebaseComplete),'# Sheets complete: '+Boolean(meta.sheetsComplete),'# Sheets requested: '+Boolean(meta.sheetsRequested)];
+ const prefix=['# LawLand integrity audit (read-only)','# Firebase complete: '+Boolean(meta.firebaseComplete),'# Sheets complete: '+(meta.sheetsRequested?Boolean(meta.sheetsComplete):'not requested'),'# Sheets requested: '+Boolean(meta.sheetsRequested)];
  return '\uFEFF'+prefix.join('\r\n')+'\r\n'+rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+}
+
+export function auditMenuOverrides(overrides,mainMenus,subMenus){
+ const findings=[],mains=new Set(mainMenus.map(x=>x.menuId)),subs=new Set(subMenus.map(x=>x.subMenuId));
+ for(const entry of overrides){
+  if(!entry||entry.active!==true)continue;
+  if(entry.kind==='sub'&&!mains.has(entry.parentMenuId)){
+   findings.push({severity:'error',type:'override-missing-parent',id:entry.id,message:'หมวดหมู่ที่แก้ไขผ่าน Firebase อ้างเมนูหลักที่ไม่แสดง: '+String(entry.title||entry.id)});
+  }
+  if(entry.kind==='main'&&!mains.has(entry.id)){
+   findings.push({severity:'warning',type:'override-not-visible',id:entry.id,message:'เมนูหลักที่เปิดใช้งานไม่ปรากฏในรายการ: '+String(entry.title||entry.id)});
+  }
+  if(entry.kind==='sub'&&!subs.has(entry.id)&&mains.has(entry.parentMenuId)){
+   findings.push({severity:'warning',type:'override-submenu-not-visible',id:entry.id,message:'หมวดหมู่ที่เปิดใช้งานไม่ปรากฏในรายการ: '+String(entry.title||entry.id)});
+  }
+ }
+ return findings;
 }
