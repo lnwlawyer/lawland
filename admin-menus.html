@@ -20,7 +20,7 @@
 })();
 </script><script type="module">
 import {mergeMenuCatalog,duplicateMenuTitle,orderedSiblingIds,reorderSiblingIds} from './menu-catalog.mjs';
-import {auditCatalog,auditSheetDocuments,summarizeFindings,exportAuditCsv} from './admin-integrity.mjs';
+import {auditCatalog,auditSheetDocuments,summarizeFindings,exportAuditCsv,auditMenuOverrides} from './admin-integrity.mjs';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
 import {getFirestore,collection,doc,getDoc,getDocs,query,where,limit,startAfter,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
@@ -139,7 +139,7 @@ async function runIntegrityAudit(){
    if(snap.size<100){complete=true;break}
    cursor=snap.docs[snap.docs.length-1];
   }
-  const findings=auditCatalog(catalog.mainMenus,catalog.subMenus,overrides,docs);
+  const findings=[...auditCatalog(catalog.mainMenus,catalog.subMenus,overrides,docs),...auditMenuOverrides(overrides,catalog.mainMenus,catalog.subMenus)];
   let sheetCount=0,sheetErrors=0,sheetPartial=false;
   if(field('includeSheetAudit').checked){
    const menuIds=[...new Set(mainSheets.map(x=>x.menuId).filter(x=>typeof x==='string'&&x&&x!=='settings'&&x!=='about'))];
@@ -165,7 +165,7 @@ async function runIntegrityAudit(){
     const note=document.createElement('span');note.textContent=' — ตรวจสอบต้นฉบับ Google Sheets (ระบบนี้ไม่แก้ไขข้อมูลต้นฉบับ)';p.append(note);
    }
   }
-  if(findings.length>100){const p=document.createElement('p');p.textContent='แสดงข้อสังเกต 100 รายการแรกเท่านั้น';result.append(p)}
+  if(findings.length>100){const p=document.createElement('p');p.textContent='แสดงข้อสังเกต 100 รายการแรกเท่านั้น รายการทั้งหมดอยู่ในรายงาน CSV';result.append(p)}
  }catch(error){message.textContent='ตรวจสอบไม่สำเร็จ: '+(error.code||error.message||'unknown')}
  finally{button.disabled=false}
 }
