@@ -21,7 +21,7 @@ service cloud.firestore {
     && d.category is string && d.category.size()>0 && d.category.size()<=100
     && d.url is string && d.url.size()<=1500 && d.url.matches('https://.+')
     && d.description is string && d.description.size()>0 && d.description.size()<=2000
-    && d.status in ['draft','published']
+    && d.status in ['draft','published','trashed']
     && d.version is int && d.version>0
     && d.updatedBy==request.auth.uid && d.updatedAt==request.time;
   }
@@ -35,7 +35,7 @@ service cloud.firestore {
    allow get,list: if admin() || resource.data.status=='published';
    allow create: if admin() && validDocument() && request.resource.data.version==1;
    allow update: if admin() && validDocument() && resource.data.version is int && request.resource.data.version==resource.data.version+1;
-   allow delete: if false;
+   allow delete: if admin() && resource.data.status=='trashed';
   }
   match /{document=**} { allow read,write: if false; }
  }
