@@ -1985,8 +1985,12 @@
                      htmlContent += `<p class="text-gray-600">ยังไม่มีเนื้อหาในหมวดนี้</p>`;
                 }
             }
+            if(currentSubMenuItem&&!firebaseSearchFinished&&firebaseSearchLoadState!=='error'){
+                htmlContent += '<button id="loadMoreMenuPublished" type="button" class="mt-3 px-3 py-2 rounded-lg border border-gray-300 bg-white">โหลดเอกสารเพิ่มเติมจาก Firebase</button>';
+            }
             if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
+            document.getElementById('loadMoreMenuPublished')?.addEventListener('click',()=>void renderContent(contentId,true));
             document.getElementById('adminDocumentCatalogButton')?.addEventListener('click', () => {
                 if (!verifiedAdmin || !auth.currentUser) return;
                 const panel = document.getElementById('adminDocumentCatalog');
