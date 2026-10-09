@@ -1465,6 +1465,21 @@
             })();
             return firebaseSearchPromise;
         }
+        // Reuse published-only cursor; cap automatic reads to four batches per navigation.
+        async function loadMenuPublishedDocuments(session,batches=4){
+            for(let n=0;n<batches&&!firebaseSearchFinished;n++){
+                if(session!==authSessionGeneration)return;
+                if(firebaseSearchPromise)await firebaseSearchPromise;
+                else await loadFirebaseSearchDocuments();
+                if(firebaseSearchLoadState==='error'||session!==authSessionGeneration)return;
+            }
+        }
+        function mergedCategoryDocuments(subId){
+            const sheets=documentData[subId]||[];
+            const firebase=firebaseSearchDocuments.filter(x=>x.status==='published'&&x.category===subId&&safeExternalUrl(x.url)).map(x=>({docName:x.title,docUrl:x.url}));
+            const seen=new Set(sheets.map(x=>safeExternalUrl(x.docUrl)));
+            return sheets.concat(firebase.filter(x=>{const url=safeExternalUrl(x.docUrl);if(seen.has(url))return false;seen.add(url);return true}));
+        }
         function renderGlobalDocumentSearch() {
             const input = document.getElementById('globalDocumentSearch');
             const list = document.getElementById('globalDocumentResults');
@@ -1669,7 +1684,7 @@
             staticMenus.forEach(item => {
                 bottomNavHtml += `<li><a href="#" data-content-id="${escapeHtml(item.menuId)}">${ICONS[item.icon] || ''}<span>${escapeHtml(item.menuTitle)}</span></a></li>`;
             });
-            bottomNavHtml += '<li><a href="#" data-content-id="firebase-published">' + (ICONS.book || ICONS.home || '') + '<span>เอกสารเผยแพร่ (Firebase)</span></a></li>';
+
             if (verifiedAdmin) {
                 bottomNavHtml += '<li><a href="#" data-content-id="admin-management">' + (ICONS.settings || '') + '<span>จัดการระบบ</span></a></li>';
             }
@@ -1933,18 +1948,21 @@
                     if (navigationRequest !== latestNavigationRequest) return;
                 }
                 if (!documentData[contentId]) documentData[contentId] = [];
+                await loadMenuPublishedDocuments(authSessionGeneration);
+                if(navigationRequest!==latestNavigationRequest)return;
+                const visibleCategoryDocuments=mergedCategoryDocuments(contentId);
                 htmlContent += '<div class="mb-3 flex items-center gap-3 flex-wrap"><button id="refreshDocumentCatalog" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">↻ อัปเดตรายการเอกสาร</button><span id="refreshDocumentStatus" role="status" class="text-sm text-gray-600"></span></div>';
 
-                if (Array.isArray(documentData[contentId]) && documentData[contentId].length > 0) {
+                if (Array.isArray(visibleCategoryDocuments) && visibleCategoryDocuments.length > 0) {
                     // Renders a list of documents
                     htmlContent += `<h3 class="text-xl font-semibold text-gray-700 mb-5">รายการเอกสารสำหรับ ${escapeHtml(title)}</h3>`;
-                    htmlContent += `<p id="documentCount" class="text-sm text-gray-600 mb-3" role="status">เอกสารทั้งหมด ${documentData[contentId].length} รายการ</p>`;
+                    htmlContent += `<p id="documentCount" class="text-sm text-gray-600 mb-3" role="status">เอกสารทั้งหมด ${visibleCategoryDocuments.length} รายการ</p>`;
                     htmlContent += `<div class="mb-4"><label for="documentSort" class="block text-sm font-semibold text-gray-700 mb-2">เรียงลำดับเอกสาร</label><select id="documentSort" class="w-full p-3 border border-gray-300 rounded-lg"><option value="original">ตามลำดับเดิม</option><option value="asc">ชื่อ ก–ฮ</option><option value="desc">ชื่อ ฮ–ก</option></select></div>`;
                     htmlContent += `<div class="mb-3"><button id="resetDocumentFilters" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างตัวกรองและการเรียงลำดับ</button></div>`;
                     htmlContent += `<div class="mb-3"><label class="inline-flex items-center gap-2"><input id="favoritesOnly" type="checkbox"> แสดงเฉพาะรายการโปรด</label></div>`;
                     htmlContent += `<div class="mb-4"><label for="documentSearch" class="block text-sm font-semibold text-gray-700 mb-2">ค้นหาเอกสารในหมวดนี้</label><input id="documentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." class="w-full p-3 border border-gray-300 rounded-lg" aria-controls="documentList" aria-describedby="documentCount"><button id="clearDocumentSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>`;
                     htmlContent += `<div id="documentList" class="space-y-3">`;
-                    documentData[contentId].forEach((doc, originalIndex) => {
+                    visibleCategoryDocuments.forEach((doc, originalIndex) => {
                         htmlContent += `
                             <div class="document-item" data-original-index="${originalIndex}" data-document-name="${escapeHtml(doc.docName)}" data-document-search="${escapeHtml(String(doc.docName ?? '').toLocaleLowerCase('th'))}">
                                 <span class="text-gray-800 font-medium">${escapeHtml(doc.docName)}</span>
