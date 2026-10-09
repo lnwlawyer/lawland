@@ -103,7 +103,9 @@ async function changeVisibility(kind,id,title,parent,order,active){
  if(menuBusy)return;
  if(['settings','about'].includes(id))return;
  if(!active&&kind==='main'&&catalog.subMenus.some(x=>x.parentMenuId===id)){status.textContent='ต้องย้ายหรือซ่อนหมวดหมู่ย่อยก่อนซ่อนเมนูหลัก';return}
+ if(!active&&kind==='main'&&mainSheets.some(x=>x.menuId===id)){status.textContent='ไม่สามารถซ่อนเมนูหลักเดิมจาก Google Sheets ได้ เพื่อรักษาการเข้าถึงข้อมูลเดิม';return}
  if(!active&&kind==='sub'){
+  if(subSheets.some(x=>x.subMenuId===id)){status.textContent='ไม่สามารถซ่อนหมวดหมู่เดิมจาก Google Sheets ได้โดยตรง เพื่อป้องกันเอกสารเดิมหายจากการนำทาง';return}
   try{const actor=await verifiedActor();const docs=await getDocs(query(collection(db,'managedDocuments'),where('category','==',id),limit(1)));if(actor.uid!==authorizedUid)return;
    if(!docs.empty){status.textContent='หมวดหมู่นี้มีเอกสาร Firebase อยู่ กรุณาย้ายเอกสารก่อนซ่อนหมวดหมู่';return}
   }catch(error){status.textContent='ตรวจสอบเอกสารที่ผูกกับหมวดหมู่ไม่ได้ จึงยังไม่ซ่อนเมนู';return}
