@@ -896,9 +896,9 @@
 
         function showLoginScreen() {
             activeAuthenticatedUid = null;
-            document.getElementById('adminWorkspace').classList.add('hidden');
             authSessionGeneration++;
             window.appInitialized = false;
+            document.getElementById('adminWorkspace').classList.add('hidden');
             documentPrefetchGeneration++;
             pendingDocumentSheets.clear();
             // Invalidate in-flight navigation and clear session-scoped document data.
