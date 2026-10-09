@@ -1467,6 +1467,7 @@
         }
         // Reuse published-only cursor; cap automatic reads to four batches per navigation.
         async function loadMenuPublishedDocuments(session,batches=4){
+            if(!contentDb)return;
             for(let n=0;n<batches&&!firebaseSearchFinished;n++){
                 if(session!==authSessionGeneration)return;
                 if(firebaseSearchPromise)await firebaseSearchPromise;
@@ -1813,7 +1814,7 @@
             return task;
         }
         let latestNavigationRequest = 0;
-        async function renderContent(contentId, isBackNavigation = false) {
+        async function renderContent(contentId, isBackNavigation = false, firebaseBatches = 4) {
             const navigationRequest = ++latestNavigationRequest;
             // Update history stack
             if (!isBackNavigation) {
@@ -1948,7 +1949,7 @@
                     if (navigationRequest !== latestNavigationRequest) return;
                 }
                 if (!documentData[contentId]) documentData[contentId] = [];
-                await loadMenuPublishedDocuments(authSessionGeneration);
+                await loadMenuPublishedDocuments(authSessionGeneration,firebaseBatches);
                 if(navigationRequest!==latestNavigationRequest)return;
                 const visibleCategoryDocuments=mergedCategoryDocuments(contentId);
                 htmlContent += '<div class="mb-3 flex items-center gap-3 flex-wrap"><button id="refreshDocumentCatalog" type="button" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">↻ อัปเดตรายการเอกสาร</button><span id="refreshDocumentStatus" role="status" class="text-sm text-gray-600"></span></div>';
@@ -1985,12 +1986,27 @@
                      htmlContent += `<p class="text-gray-600">ยังไม่มีเนื้อหาในหมวดนี้</p>`;
                 }
             }
-            if(currentSubMenuItem&&!firebaseSearchFinished&&firebaseSearchLoadState!=='error'){
-                htmlContent += '<button id="loadMoreMenuPublished" type="button" class="mt-3 px-3 py-2 rounded-lg border border-gray-300 bg-white">โหลดเอกสารเพิ่มเติมจาก Firebase</button>';
+            if(currentSubMenuItem){
+                if(!contentDb||firebaseSearchLoadState==='error'){
+                    htmlContent += '<div role="alert" class="mt-3 p-3 border border-amber-300 rounded-lg"><p>ไม่สามารถโหลดเอกสาร Firebase ได้ในขณะนี้ เอกสารจากคลังเดิมยังใช้งานได้</p><button id="retryMenuPublished" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ลองโหลดเอกสาร Firebase อีกครั้ง</button></div>';
+                }else if(!firebaseSearchFinished){
+                    htmlContent += '<div class="mt-3"><p id="menuPublishedProgress" role="status" class="text-sm text-gray-600">โหลดเอกสาร Firebase แล้ว '+firebaseSearchDocuments.length+' รายการ (ยังมีรายการเพิ่มเติม)</p><button id="loadMoreMenuPublished" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">โหลดเพิ่มเติมอีก 50 รายการ</button></div>';
+                }else{
+                    htmlContent += '<p role="status" class="mt-3 text-sm text-gray-600">โหลดรายการเอกสาร Firebase ครบแล้ว</p>';
+                }
             }
             if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
-            document.getElementById('loadMoreMenuPublished')?.addEventListener('click',()=>void renderContent(contentId,true));
+            async function requestMoreMenuPublished(button){
+                if(!button||!auth.currentUser||firebaseSearchPromise)return;
+                const session=authSessionGeneration,nav=latestNavigationRequest;
+                button.disabled=true;button.textContent='กำลังโหลดเอกสาร…';
+                await loadMenuPublishedDocuments(session,1);
+                if(session!==authSessionGeneration||nav!==latestNavigationRequest)return;
+                void renderContent(contentId,true,0);
+            }
+            document.getElementById('loadMoreMenuPublished')?.addEventListener('click',e=>void requestMoreMenuPublished(e.currentTarget));
+            document.getElementById('retryMenuPublished')?.addEventListener('click',e=>void requestMoreMenuPublished(e.currentTarget));
             document.getElementById('adminDocumentCatalogButton')?.addEventListener('click', () => {
                 if (!verifiedAdmin || !auth.currentUser) return;
                 const panel = document.getElementById('adminDocumentCatalog');
