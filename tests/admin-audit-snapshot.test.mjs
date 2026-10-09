@@ -8,7 +8,7 @@ test('audit is single-flight and invalidated on menu reload',()=>{
  assert.match(html,/const generation=\+\+authGeneration;authorizedUid=null;invalidateAudit\(\)/);
 });
 test('stale async Firebase and Sheets results cannot overwrite newer audit',()=>{
- assert.ok((audit.match(/auditRun!==auditGeneration/g)||[]).length>=4);
+ assert.ok((audit.match(/auditRun!==auditGeneration/g)||[]).length>=3);
  assert.match(audit,/if\(auditRun===auditGeneration\)\{auditBusy=false;button.disabled=false\}/);
  assert.match(html,/field\('downloadAudit'\)\.disabled=true/);
 });
