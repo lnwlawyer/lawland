@@ -367,26 +367,26 @@
             display: flex; flex-wrap: wrap; gap: .5rem; padding: .5rem 0;
         }
         .document-more-actions-panel > * { min-height: 44px; }
-        /* Compact search-first home: one visible search row, optional category filter. */
-        .home-compact-search {
-            display: flex; gap: 8px; align-items: center; max-width: 640px;
-            margin: 0 0 12px;
+        /* Two equal search areas on desktop, stacked only on narrow screens. */
+        .home-search-pair {
+            display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 12px; align-items: center; margin-bottom: 10px;
         }
-        .home-compact-search input {
-            flex: 1 1 auto; min-width: 0; width: 100%; padding: 9px 12px;
+        .home-compact-search, .home-category-search {
+            display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0;
+        }
+        .home-compact-search input, .home-category-search input {
+            flex: 1 1 0; min-width: 0; width: 100%; padding: 9px 12px;
             border: 1px solid #cbd5e1; border-radius: 8px; background: #fff;
         }
-        .home-compact-search button {
-            flex: 0 0 auto; color: #fff; border-radius: 8px; padding: 9px 14px;
-            min-height: 42px;
+        .home-compact-search button, .home-category-search button {
+            flex: 0 0 auto; border-radius: 8px; padding: 9px 12px; min-height: 42px;
         }
-        .home-category-filter { margin: 0 0 12px; }
-        .home-category-filter > summary {
-            cursor: pointer; color: #475569; font-size: .875rem;
-            display: inline-block; margin-bottom: 4px;
+        .home-compact-search button { color: #fff; }
+        .home-category-search button { border: 1px solid #cbd5e1; background: #fff; }
+        @media (max-width: 640px) {
+            .home-search-pair { grid-template-columns: minmax(0, 1fr); gap: 8px; }
         }
-        .home-category-filter[open] > summary { margin-bottom: 10px; }
-        .home-category-filter input { max-width: 640px; }
         /* Long Thai titles and multiple actions must not overflow narrow screens. */
         #documentList .document-item {
             flex-wrap: wrap;
@@ -1689,11 +1689,12 @@
             }
             else if (subMenuData[contentId] && subMenuData[contentId].length > 0) {
                 if (contentId === 'home') {
-                    htmlContent += '<form id="homeDocumentSearchForm" class="home-compact-search" role="search"><label for="homeDocumentSearch" class="sr-only">ค้นหาเอกสารทุกหมวด</label><input id="homeDocumentSearch" type="search" autocomplete="off" placeholder="ค้นหาเอกสารทุกหมวด..." required><button type="submit" aria-label="ค้นหาเอกสาร" style="background-color:var(--button-primary-bg)">ค้นหา</button></form>';
+                    htmlContent += '<div class="home-search-pair"><form id="homeDocumentSearchForm" class="home-compact-search" role="search"><label for="homeDocumentSearch" class="sr-only">ค้นหาเอกสารทุกหมวด</label><input id="homeDocumentSearch" type="search" autocomplete="off" placeholder="ค้นหาเอกสารทุกหมวด..." required><button type="submit" aria-label="ค้นหาเอกสาร" style="background-color:var(--button-primary-bg)">ค้นหา</button></form>';
+                    htmlContent += '<div class="home-category-search"><label for="menuSearch" class="sr-only">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="ค้นหาหมวดย่อย..." aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" aria-label="ล้างคำค้นหาหมวดย่อย">ล้าง</button></div></div>';
+                } else {
+                    htmlContent += '<div class="mb-4"><label for="menuSearch" class="sr-only">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-2 border border-gray-300 rounded-lg" aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>';
                 }
-                // Renders a list of cards (which are sub-menus)
                 htmlContent += `<p id="menuCount" class="text-sm text-gray-600 mb-3" role="status">หมวดทั้งหมด ${subMenuData[contentId].length} รายการ</p>`;
-                htmlContent += (contentId === 'home' ? '<details class="home-category-filter"><summary>ค้นหาหมวดหมู่</summary>' : '<div class="mb-4">') + '<label for="menuSearch" class="sr-only">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-2 border border-gray-300 rounded-lg" aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button>' + (contentId === 'home' ? '</details>' : '</div>');
                 htmlContent += '<div id="subMenuGrid" class="menu-card-grid">';
                 subMenuData[contentId].forEach(item => {
                     const imageUrl = item.imageUrl || defaultImageUrl;
