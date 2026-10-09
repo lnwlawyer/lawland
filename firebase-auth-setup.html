@@ -44,12 +44,21 @@ const account=document.getElementById("account");
 const auth=getAuth(initializeApp(config));
 const provider=new GoogleAuthProvider();
 provider.setCustomParameters({prompt:"select_account"});
-onAuthStateChanged(auth,user=>{
+onAuthStateChanged(auth,async user=>{
  login.disabled=false;login.hidden=!!user;logout.hidden=!user;
  if(user){
-  status.textContent="เข้าสู่ระบบ Firebase ใหม่สำเร็จ";
+  status.textContent="กำลังตรวจสอบสิทธิ์จาก Firebase…";
   account.hidden=false;
-  account.textContent="Firebase Project: "+config.projectId+"\nUID: "+user.uid+"\nอีเมล: "+(user.email||"ไม่ระบุ")+"\nสถานะ: User (ยังไม่ได้กำหนดสิทธิ์ Admin)";
+  try {
+   const token = await user.getIdTokenResult(true);
+   if(auth.currentUser?.uid !== user.uid) return;
+   const admin = token.claims.admin === true;
+   status.textContent="เข้าสู่ระบบ Firebase ใหม่สำเร็จ";
+   account.textContent="Firebase Project: "+config.projectId+"\nUID: "+user.uid+"\nอีเมล: "+(user.email||"ไม่ระบุ")+"\nสถานะ: "+(admin?"Admin (ยืนยัน Custom Claim แล้ว)":"User (ยังไม่มีสิทธิ์ Admin)");
+  } catch(e) {
+   status.textContent="ตรวจสอบ Custom Claim ไม่สำเร็จ: "+(e.code||"unknown");
+   account.textContent="โปรดลองออกจากระบบและเข้าสู่ระบบอีกครั้ง";
+  }
  }else{
   status.textContent="ยังไม่ได้เข้าสู่ระบบ Firebase ใหม่";
   account.hidden=true;account.textContent="";
