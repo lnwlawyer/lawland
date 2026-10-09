@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
+test('admin editor requires fresh custom claim and transactional version',()=>{const s=read('admin-documents.html');assert.match(s,/getIdTokenResult\(true\)/);assert.match(s,/token\.claims\.admin!==true/);assert.match(s,/runTransaction\(db/);assert.match(s,/serverTimestamp\(\)/);assert.doesNotMatch(s,/deleteDoc|uploadBytes|firebase\/storage/);});
+test('public page only queries published documents',()=>{const s=read('published-documents.html');assert.match(s,/where\('status','==','published'\)/);assert.match(s,/textContent=d\.title/);assert.doesNotMatch(s,/innerHTML/);});
+test('rules deny non-admin writes and protect drafts',()=>{const s=read('firestore/lawland.rules');assert.match(s,/match \/managedDocuments\/\{documentId\}/);assert.match(s,/allow get,list: if admin\(\) \|\| resource\.data\.status=='published'/);assert.match(s,/allow create: if admin\(\)/);assert.match(s,/allow delete: if false/);assert.match(s,/match \/publicContent\/\{pageId\}/);});
