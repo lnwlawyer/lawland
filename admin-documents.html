@@ -4,7 +4,7 @@ import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.
 import {getFirestore,collection,doc,getDocs,query,limit,startAfter,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 const app=initializeApp({apiKey:'AIzaSyD47rhbngXw3LXIsYa97OsKpuBA28c7faw',authDomain:'land-law-ea2bb.firebaseapp.com',projectId:'land-law-ea2bb',appId:'1:857909535391:web:d6bc0679725d5f557a38aa'});
 const auth=getAuth(app),db=getFirestore(app),status=document.getElementById('status'),workspace=document.getElementById('workspace'),inventory=document.getElementById('inventory'),form=document.getElementById('editor');
-let authorizedUid=null,records=[],lastDocument=null,allLoaded=false,inventoryBusy=false,adminPage=0,inventoryGeneration=0;
+let authorizedUid=null,records=[],lastDocument=null,allLoaded=false,inventoryBusy=false,adminPage=0,inventoryGeneration=0,inventoryRequest=0,searchTimer=null;
 const ADMIN_FETCH_SIZE=50,ADMIN_PAGE_SIZE=20;
 const field=id=>document.getElementById(id);
 const clean=()=>{form.reset();field('docId').value='';};
@@ -12,7 +12,7 @@ const data=()=>({title:field('title').value.trim(),category:field('category').va
 const valid=d=>d.title.length>0&&d.title.length<=180&&d.category.length>0&&d.category.length<=100&&d.description.length>0&&d.description.length<=2000&&d.url.length<=1500&&/^https:\/\//i.test(d.url);
 function renderInventory(){
  const list=field('list'),term=field('adminSearch').value.trim().toLocaleLowerCase('th'),chosen=field('statusFilter').value;
- const filtered=records.filter(entry=>(chosen==='all'||entry.status===chosen)&&(String(entry.title||'')+' '+String(entry.category||'')).toLocaleLowerCase('th').includes(term));
+ const filtered=records.filter(entry=>(chosen==='all'||entry.status===chosen)&&entry.searchText.includes(term));
  const pages=Math.max(1,Math.ceil(filtered.length/ADMIN_PAGE_SIZE));adminPage=Math.min(adminPage,pages-1);
  list.replaceChildren();
  for(const entry of filtered.slice(adminPage*ADMIN_PAGE_SIZE,(adminPage+1)*ADMIN_PAGE_SIZE)){
@@ -39,22 +39,22 @@ function renderInventory(){
 }
 async function loadAdminBatch(){
  if(!authorizedUid||auth.currentUser?.uid!==authorizedUid||inventoryBusy||allLoaded)return;
- const session=authorizedUid,generation=inventoryGeneration;
+ const session=authorizedUid,generation=inventoryGeneration,request=++inventoryRequest;
  inventoryBusy=true;field('loadMoreAdmin').disabled=true;
  try{
   const constraints=[limit(ADMIN_FETCH_SIZE)];
   if(lastDocument)constraints.push(startAfter(lastDocument));
   const snap=await getDocs(query(collection(db,'managedDocuments'),...constraints));
   if(auth.currentUser?.uid!==session||authorizedUid!==session||generation!==inventoryGeneration)return;
-  records.push(...snap.docs.map(x=>({id:x.id,...x.data()})));
+  records.push(...snap.docs.map(x=>{const data=x.data();return {id:x.id,...data,searchText:(String(data.title||'')+' '+String(data.category||'')).toLocaleLowerCase('th')}}));
   if(!snap.empty)lastDocument=snap.docs[snap.docs.length-1];
   allLoaded=snap.size<ADMIN_FETCH_SIZE;
  }catch(e){if(authorizedUid===session&&generation===inventoryGeneration)status.textContent='โหลดรายการไม่สำเร็จ: '+(e.code||e.message||'unknown')}
- finally{inventoryBusy=false;if(authorizedUid===session&&generation===inventoryGeneration)renderInventory()}
+ finally{if(request===inventoryRequest){inventoryBusy=false;if(authorizedUid===session&&generation===inventoryGeneration)renderInventory()}}
 }
 async function refresh(){
  if(!authorizedUid||auth.currentUser?.uid!==authorizedUid)return;
- inventoryGeneration++;records=[];lastDocument=null;allLoaded=false;adminPage=0;
+ inventoryGeneration++;inventoryRequest++;inventoryBusy=false;records=[];lastDocument=null;allLoaded=false;adminPage=0;
  renderInventory();await loadAdminBatch();
 }
 async function changeLifecycle(entry,action){
@@ -85,9 +85,10 @@ async function changeLifecycle(entry,action){
  }catch(e){status.textContent='ไม่สามารถดำเนินการได้: '+(e.code||e.message||'unknown')}
 }
 async function write(publish){const actor=auth.currentUser;if(!authorizedUid||!actor||actor.uid!==authorizedUid)return;const d=data();if(!valid(d)){status.textContent='กรุณากรอกข้อมูลให้ครบ และใช้ลิงก์ HTTPS';return}const id=field('docId').value||doc(collection(db,'managedDocuments')).id;status.textContent='กำลังตรวจสอบสิทธิ์และบันทึก…';field('save').disabled=field('publish').disabled=true;try{const token=await actor.getIdTokenResult(true);if(token.claims.admin!==true||auth.currentUser?.uid!==authorizedUid)throw Error('permission-denied');await runTransaction(db,async tx=>{const ref=doc(db,'managedDocuments',id),old=await tx.get(ref),version=old.exists()?old.data().version+1:1;if(old.exists()&&old.data().status==='trashed')throw Error('restore-before-edit');tx.set(ref,{...d,status:publish?'published':old.exists()&&old.data().status==='published'?'published':'draft',version,updatedBy:actor.uid,updatedAt:serverTimestamp()})});status.textContent=publish?'เผยแพร่เอกสารสำเร็จ':'บันทึกสำเร็จ';clean();await refresh()}catch(e){status.textContent='ไม่สามารถบันทึกได้: '+(e.code||e.message||'unknown')+' ตรวจสอบ Firestore Rules'}finally{field('save').disabled=field('publish').disabled=false}}
-onAuthStateChanged(auth,async user=>{authorizedUid=null;inventoryGeneration++;records=[];lastDocument=null;allLoaded=false;adminPage=0;workspace.hidden=inventory.hidden=true;if(!user){status.textContent='กรุณาเข้าสู่ระบบ Google ที่หน้าหลักก่อน';return}try{const token=await user.getIdTokenResult(true);if(auth.currentUser?.uid!==user.uid)return;if(token.claims.admin!==true){status.textContent='บัญชีนี้ไม่มีสิทธิ์ Admin';return}authorizedUid=user.uid;workspace.hidden=inventory.hidden=false;status.textContent='ยืนยันสิทธิ์ Admin แล้ว';await refresh()}catch(e){status.textContent='ตรวจสอบสิทธิ์หรือโหลดรายการไม่สำเร็จ: '+(e.code||'unknown')}});
+onAuthStateChanged(auth,async user=>{authorizedUid=null;inventoryGeneration++;inventoryRequest++;inventoryBusy=false;records=[];lastDocument=null;allLoaded=false;adminPage=0;workspace.hidden=inventory.hidden=true;if(!user){status.textContent='กรุณาเข้าสู่ระบบ Google ที่หน้าหลักก่อน';return}try{const token=await user.getIdTokenResult(true);if(auth.currentUser?.uid!==user.uid)return;if(token.claims.admin!==true){status.textContent='บัญชีนี้ไม่มีสิทธิ์ Admin';return}authorizedUid=user.uid;workspace.hidden=inventory.hidden=false;status.textContent='ยืนยันสิทธิ์ Admin แล้ว';await refresh()}catch(e){status.textContent='ตรวจสอบสิทธิ์หรือโหลดรายการไม่สำเร็จ: '+(e.code||'unknown')}});
 form.addEventListener('submit',e=>{e.preventDefault();void write(false)});field('publish').addEventListener('click',()=>void write(true));field('reset').addEventListener('click',clean);
-for(const id of ['statusFilter','adminSearch'])field(id).addEventListener(id==='adminSearch'?'input':'change',()=>{adminPage=0;renderInventory()});
+field('statusFilter').addEventListener('change',()=>{adminPage=0;renderInventory()});
+field('adminSearch').addEventListener('input',()=>{if(searchTimer!==null)clearTimeout(searchTimer);searchTimer=setTimeout(()=>{searchTimer=null;adminPage=0;renderInventory()},180)});
 field('previousAdminPage').addEventListener('click',()=>{if(adminPage>0){adminPage--;renderInventory()}});
 field('nextAdminPage').addEventListener('click',()=>{adminPage++;renderInventory()});
 field('loadMoreAdmin').addEventListener('click',()=>void loadAdminBatch());
