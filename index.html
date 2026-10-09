@@ -1346,6 +1346,14 @@
         }
 
         const documentViewer = document.getElementById('documentViewer');
+        documentViewer.addEventListener('close', () => {
+            // Stop embedded PDF loading and release document resources on all
+            // close paths, including the close button and the Escape key.
+            document.getElementById('documentViewerFrame').removeAttribute('src');
+            document.getElementById('readerCompareFrame').removeAttribute('src');
+            document.getElementById('readerComparePane').hidden = true;
+            currentReaderDocument = null;
+        });
         document.getElementById('documentViewerClose').addEventListener('click', () => documentViewer.close());
         document.getElementById('readerSaveLater').addEventListener('click', () => {
             if (!currentReaderDocument) return;
