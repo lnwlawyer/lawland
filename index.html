@@ -705,12 +705,7 @@
                     </button>
                 </div>
 
-                <section id="adminWorkspace" class="hidden mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2" aria-label="พื้นที่ผู้ดูแลระบบ">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <h2 class="text-sm font-semibold text-emerald-900">จัดการคลังเอกสาร</h2>
-                        <span class="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-emerald-800">Admin</span>
-                    </div>
-                </section>
+                <section id="adminWorkspace" class="hidden" aria-label="ผู้ดูแลระบบ"></section>
                 <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center" id="mainContentTitle"></h1>
                 <div id="messageBox" class="message-box"></div> <!-- Message box added here -->
                 <div id="mainContentDisplay" class="p-4">
@@ -788,6 +783,7 @@
         // --- Auth Logic ---
         
         let roleRoutingGeneration = 0;
+        let verifiedAdmin = false;
         // 1. Handle Auth State Change
         if (auth) {
             onAuthStateChanged(auth, async (user) => {
@@ -803,6 +799,7 @@
                     const token = await user.getIdTokenResult(true);
                     if (routingGeneration !== roleRoutingGeneration || auth.currentUser?.uid !== user.uid) return;
                     const isAdmin = token.claims.admin === true;
+                    verifiedAdmin = isAdmin;
                     document.getElementById('adminWorkspace').classList.toggle('hidden', !isAdmin);
                     showMainApp(user);
                 } catch (error) {
@@ -895,6 +892,7 @@
             authSessionGeneration++;
             window.appInitialized = false;
             document.getElementById('adminWorkspace').classList.add('hidden');
+            verifiedAdmin = false;
             documentPrefetchGeneration++;
             pendingDocumentSheets.clear();
             // Invalidate in-flight navigation and clear session-scoped document data.
@@ -1497,6 +1495,52 @@
             }
         }
 
+        const ABOUT_DRAFT_PREFIX = 'lawland-about-draft-v1:';
+        function readAboutDraft() {
+            if (!verifiedAdmin || !auth.currentUser) return null;
+            try {
+                const raw = localStorage.getItem(ABOUT_DRAFT_PREFIX + auth.currentUser.uid);
+                if (!raw) return null;
+                const data = JSON.parse(raw);
+                if (!data || !['name','role','description','contact'].every(key => typeof data[key] === 'string' && data[key].length <= 1000)) return null;
+                return data;
+            } catch { return null; }
+        }
+        function openAboutEditor() {
+            if (!verifiedAdmin || !auth.currentUser) return;
+            const defaults = {name:'พงศธร บุญประเสริฐ',role:'ผู้ดูแลระบบ',description:'ผู้อำนวยการส่วนกำหนดสิทธิในที่ดินและควบคุมทะเบียนที่ดิน สำนักมาตรฐานการทะเบียนที่ดิน กรมที่ดิน',contact:'ยังไม่ได้ระบุช่องทางติดต่อสำหรับหน้านี้'};
+            const values = readAboutDraft() || defaults;
+            mainContentTitle.textContent = 'แก้ไขเมนูเกี่ยวกับฉัน';
+            mainContentDisplay.replaceChildren();
+            const form = document.createElement('form');
+            form.className = 'max-w-2xl mx-auto bg-white rounded-xl p-5 space-y-4';
+            const fields = [['name','ชื่อที่แสดง',120],['role','ตำแหน่งหรือคำอธิบาย',150],['description','รายละเอียด',1000],['contact','ช่องทางติดต่อ',250]];
+            for (const [key,label,max] of fields) {
+                const wrap = document.createElement('div');
+                const caption = document.createElement('label');
+                caption.textContent = label;caption.className='block font-medium mb-1';
+                const input = document.createElement(key === 'description' ? 'textarea' : 'input');
+                input.name=key;input.required=true;input.maxLength=max;input.value=values[key];input.className='w-full rounded-lg border p-2 text-gray-900';
+                caption.append(input);wrap.append(caption);form.append(wrap);
+            }
+            const note = document.createElement('p');
+            note.className='text-sm text-amber-800';
+            note.textContent='บันทึกเป็นฉบับร่างในเบราว์เซอร์นี้เท่านั้น ยังไม่เผยแพร่ข้อมูลให้ผู้ใช้คนอื่น';
+            form.append(note);
+            const save = document.createElement('button');
+            save.type='submit';save.className='rounded-lg bg-emerald-700 text-white px-4 py-2';save.textContent='บันทึกฉบับร่าง';
+            form.append(save);
+            form.addEventListener('submit',event=>{
+                event.preventDefault();
+                if (!verifiedAdmin || !auth.currentUser) return;
+                const data=Object.fromEntries(fields.map(([key])=>[key,form.elements.namedItem(key).value.trim()]));
+                if (Object.values(data).some(value=>!value)) return;
+                try { localStorage.setItem(ABOUT_DRAFT_PREFIX + auth.currentUser.uid,JSON.stringify(data));renderContent('about'); }
+                catch { note.textContent='ไม่สามารถบันทึกฉบับร่างในเบราว์เซอร์นี้ได้'; }
+            });
+            mainContentDisplay.append(form);
+        }
+
         function renderSidebar() {
             const mainMenusToRender = mainMenuData.filter(item => item.menuId !== 'settings' && item.menuId !== 'about');
             const staticMenus = mainMenuData.filter(item => item.menuId === 'settings' || item.menuId === 'about');
@@ -1515,6 +1559,9 @@
             staticMenus.forEach(item => {
                 bottomNavHtml += `<li><a href="#" data-content-id="${escapeHtml(item.menuId)}">${ICONS[item.icon] || ''}<span>${escapeHtml(item.menuTitle)}</span></a></li>`;
             });
+            if (verifiedAdmin) {
+                bottomNavHtml += '<li><a href="#" data-content-id="admin-management">' + (ICONS.settings || '') + '<span>จัดการระบบ</span></a></li>';
+            }
             bottomNavHtml += '</ul></div>';
             
             sidebarNavContainer.innerHTML = mainNavHtml + bottomNavHtml;
@@ -1717,16 +1764,20 @@
                         <p class="text-sm text-gray-600">ขณะนี้แอปรองรับภาษาไทย และยังไม่มีระบบแจ้งเตือนเอกสารใหม่</p>
                     </div>
                  `;
+            } else if (contentId === 'admin-management' && verifiedAdmin) {
+                htmlContent += '<section class="max-w-2xl mx-auto rounded-xl bg-white p-5 shadow-sm"><h2 class="text-xl font-semibold mb-3">จัดการระบบ</h2><p class="text-gray-600 mb-4">จัดการข้อมูลสำหรับผู้ดูแลระบบ</p><button id="editAboutMenu" type="button" class="rounded-lg bg-emerald-700 text-white px-4 py-2">แก้ไขเมนูเกี่ยวกับฉัน</button><p class="text-sm text-gray-500 mt-4">ขณะนี้รองรับการแก้ไขฉบับร่างเฉพาะเบราว์เซอร์นี้ ยังไม่เผยแพร่ไปยังผู้ใช้คนอื่น</p></section>';
             } else if (contentId === 'about') {
+                const aboutDefaults = {name:'พงศธร บุญประเสริฐ',role:'ผู้ดูแลระบบ',description:'ผู้อำนวยการส่วนกำหนดสิทธิในที่ดินและควบคุมทะเบียนที่ดิน สำนักมาตรฐานการทะเบียนที่ดิน กรมที่ดิน',contact:'ยังไม่ได้ระบุช่องทางติดต่อสำหรับหน้านี้'};
+                const aboutDraft = verifiedAdmin ? readAboutDraft() : null;
+                const aboutInfo = aboutDraft || aboutDefaults;
                 htmlContent += `
                     <div class="profile-card text-center p-8">
                         <img src="https://placehold.co/120x120/a7f3d0/065f46?text=User" alt="Profile Picture" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white shadow-lg">
-                        <h3 class="text-2xl font-bold text-gray-800">พงศธร บุญประเสริฐ</h3>
-                        <p class="text-gray-500 font-medium">ผู้ดูแลระบบ</p>
-                        <p class="mt-4 text-gray-600 max-w-md mx-auto">
-                            ผู้อำนวยการส่วนกำหนดสิทธิในที่ดินและควบคุมทะเบียนที่ดิน สำนักมาตรฐานการทะเบียนที่ดิน กรมที่ดิน
-                        </p>
-                        <p class="mt-6 text-sm text-gray-500">ยังไม่ได้ระบุช่องทางติดต่อสำหรับหน้านี้</p>
+                        <h3 class="text-2xl font-bold text-gray-800">${escapeHtml(aboutInfo.name)}</h3>
+                        <p class="text-gray-500 font-medium">${escapeHtml(aboutInfo.role)}</p>
+                        <p class="mt-4 text-gray-600 max-w-md mx-auto">${escapeHtml(aboutInfo.description)}</p>
+                        <p class="mt-6 text-sm text-gray-500">${escapeHtml(aboutInfo.contact)}</p>
+                        ${verifiedAdmin ? '<button id="editAboutMenu" type="button" class="mt-4 rounded-lg bg-emerald-700 text-white px-4 py-2">แก้ไขข้อมูล</button>' : ''}
                     </div>
                 `;
             }
@@ -1806,6 +1857,7 @@
             }
             if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
+            document.getElementById('editAboutMenu')?.addEventListener('click', openAboutEditor);
             const homeSearchForm = document.getElementById('homeDocumentSearchForm');
             homeSearchForm?.addEventListener('submit', async event => {
                 event.preventDefault();
