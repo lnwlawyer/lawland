@@ -23,3 +23,17 @@ export function mergeMenuCatalog(mainMenus,subMenus,overrides){
  const subs=[...sub.values()].filter(x=>ids.has(x.parentMenuId)).sort((a,b)=>order(a,b,'subMenuOrder'));
  return {mainMenus:mains,subMenus:subs};
 }
+
+export function duplicateMenuTitle(catalog,kind,title,parentMenuId='',excludeId=''){
+ const normalized=String(title).trim().toLocaleLowerCase('th');
+ if(!normalized)return false;
+ const list=kind==='main'?catalog.mainMenus:catalog.subMenus.filter(x=>x.parentMenuId===parentMenuId);
+ return list.some(x=>(kind==='main'?x.menuId:x.subMenuId)!==excludeId&&String(kind==='main'?x.menuTitle:x.subMenuTitle).trim().toLocaleLowerCase('th')===normalized);
+}
+export function orderedSiblingIds(catalog,kind,parent=''){
+ return (kind==='main'?catalog.mainMenus.filter(x=>!['settings','about'].includes(x.menuId)):catalog.subMenus.filter(x=>x.parentMenuId===parent)).map(x=>kind==='main'?x.menuId:x.subMenuId);
+}
+export function reorderSiblingIds(ids,dragged,target){
+ if(dragged===target||!ids.includes(dragged)||!ids.includes(target))return [...ids];
+ const result=ids.filter(x=>x!==dragged);result.splice(result.indexOf(target),0,dragged);return result;
+}
