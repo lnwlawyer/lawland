@@ -957,6 +957,7 @@
         let subMenuData = {};
         let documentData = Object.create(null);
         let loadedDocumentSheets = new Set();
+        const globalSearchFailedSheets = new Set();
         let documentSearchShortcutHandler = null;
         const favoriteDocumentLinks = new Set();
         const defaultImageUrl = "https://placehold.co/100x100/d1fae5/065f46?text=%3F";
@@ -1417,6 +1418,8 @@
                 .filter(id => typeof id === 'string' && id && id !== 'settings' && id !== 'about')).size;
             const readySheets = [...loadedDocumentSheets].filter(name => name.startsWith('docs_')).length;
             list.replaceChildren();
+            const retry = document.getElementById('retryGlobalSearch');
+            if (retry) retry.hidden = globalSearchFailedSheets.size === 0;
             if (!query) {
                 count.textContent = 'พิมพ์ชื่อเอกสารเพื่อค้นหาทุกหมวด · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด';
                 return;
@@ -1440,10 +1443,12 @@
                 }
             }
             count.textContent = 'พบ ' + results.length + ' รายการ · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด' +
-                (readySheets < totalSheets ? ' (ผลการค้นหายังไม่ครบทุกหมวด)' : '');
+                (globalSearchFailedSheets.size ? ' · โหลดไม่สำเร็จ ' + globalSearchFailedSheets.size + ' หมวด (ลองโหลดอีกครั้งได้)' :
+                    readySheets < totalSheets ? ' (ผลการค้นหายังไม่ครบทุกหมวด)' : '');
             if (!results.length) {
                 const p = document.createElement('p');
-                p.textContent = readySheets < totalSheets ? 'ยังไม่พบเอกสาร กำลังโหลดหมวดที่เหลือ...' : 'ไม่พบเอกสารที่ตรงกับคำค้นหา';
+                p.textContent = globalSearchFailedSheets.size ? 'ยังไม่พบเอกสารในหมวดที่โหลดสำเร็จ กรุณาลองโหลดหมวดที่ไม่สำเร็จอีกครั้ง' :
+                    readySheets < totalSheets ? 'ยังไม่พบเอกสาร กำลังโหลดหมวดที่เหลือ...' : 'ไม่พบเอกสารที่ตรงกับคำค้นหา';
                 list.append(p);
                 return;
             }
@@ -1639,7 +1644,7 @@
 
             // Determine what to render
             if (contentId === 'global-search') {
-                htmlContent += '<div class="global-search"><label for="globalDocumentSearch">ค้นหาจากชื่อเอกสารทุกหมวด</label><input id="globalDocumentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." aria-describedby="globalDocumentCount"><p id="globalDocumentCount" role="status"></p><div id="globalDocumentResults"></div></div>';
+                htmlContent += '<div class="global-search"><label for="globalDocumentSearch">ค้นหาจากชื่อเอกสารทุกหมวด</label><input id="globalDocumentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." aria-describedby="globalDocumentCount"><p id="globalDocumentCount" role="status"></p><button id="retryGlobalSearch" type="button" hidden class="mb-3 px-3 py-2 rounded-lg border border-gray-300">ลองโหลดหมวดที่ไม่สำเร็จอีกครั้ง</button><div id="globalDocumentResults"></div></div>';
             } else if (contentId === 'reader-recent' || contentId === 'reader-later') {
                 htmlContent += '<p class="text-sm text-gray-600 mb-4">รายการนี้เก็บในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p><label for="readerLibrarySearch">ค้นหาเอกสารในรายการ</label><input id="readerLibrarySearch" type="search" placeholder="พิมพ์ชื่อเอกสาร..." autocomplete="off"><p id="readerLibraryCount" role="status"></p><div id="readerLibraryList"></div>';
             } else if (contentId === 'settings') {
@@ -1804,23 +1809,41 @@
                 // An explicit cross-category search should search every sheet, even if
                 // optional background prefetch has been disabled in Settings.
                 const searchSession = authSessionGeneration;
-                const missing = [...new Set(mainMenuData.map(item => item.menuId)
-                    .filter(id => typeof id === 'string' && id !== 'settings' && id !== 'about'))]
-                    .map(id => 'docs_' + id).filter(sheet => !loadedDocumentSheets.has(sheet));
-                if (missing.length) {
+                globalSearchFailedSheets.clear();
+                const retryButton = document.getElementById('retryGlobalSearch');
+                const loadSearchSheets = sheets => {
+                    if (!sheets.length) { renderGlobalDocumentSearch(); return; }
                     let next = 0;
+                    retryButton.disabled = true;
                     const loadMore = async () => {
-                        while (next < missing.length && searchSession === authSessionGeneration &&
+                        while (next < sheets.length && searchSession === authSessionGeneration &&
                             historyStack[historyStack.length - 1] === 'global-search') {
-                            const sheet = missing[next++];
-                            try { await ensureDocumentSheet(sheet, searchSession); }
-                            catch (error) { console.warn('Search catalog unavailable:', sheet, error); }
+                            const sheet = sheets[next++];
+                            try {
+                                await ensureDocumentSheet(sheet, searchSession);
+                                globalSearchFailedSheets.delete(sheet);
+                            } catch (error) {
+                                globalSearchFailedSheets.add(sheet);
+                                console.warn('Search catalog unavailable:', sheet, error);
+                            }
                             if (searchSession === authSessionGeneration &&
                                 historyStack[historyStack.length - 1] === 'global-search') renderGlobalDocumentSearch();
                         }
                     };
-                    void Promise.all([loadMore(), loadMore()]);
-                }
+                    void Promise.all([loadMore(), loadMore()]).finally(() => {
+                        if (searchSession !== authSessionGeneration ||
+                            historyStack[historyStack.length - 1] !== 'global-search') return;
+                        retryButton.disabled = false;
+                        renderGlobalDocumentSearch();
+                    });
+                };
+                retryButton.addEventListener('click', () => {
+                    loadSearchSheets([...globalSearchFailedSheets].filter(sheet => !loadedDocumentSheets.has(sheet)));
+                });
+                const missing = [...new Set(mainMenuData.map(item => item.menuId)
+                    .filter(id => typeof id === 'string' && id !== 'settings' && id !== 'about'))]
+                    .map(id => 'docs_' + id).filter(sheet => !loadedDocumentSheets.has(sheet));
+                loadSearchSheets(missing);
             }
             if (contentId === 'reader-recent' || contentId === 'reader-later') {
                 document.getElementById('readerLibrarySearch')?.addEventListener('input', renderReaderWorkspace);
