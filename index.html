@@ -868,6 +868,8 @@
                 firebaseSearchDocuments = [];
                 firebaseSearchLoadState = 'pending';
                 firebaseSearchPromise = null;
+                firebaseSearchCursor = null;
+                firebaseSearchFinished = false;
             loadedDocumentSheets = new Set();
             pendingDocumentSheets.clear();
             refreshingDocumentSheets.clear();
@@ -1436,16 +1438,23 @@
         let firebaseSearchDocuments = [];
         let firebaseSearchLoadState = 'pending';
         let firebaseSearchPromise = null;
+        let firebaseSearchCursor = null;
+        let firebaseSearchFinished = false;
+        const firebaseSearchPageSize = 50;
         async function loadFirebaseSearchDocuments() {
-            if (!contentDb || firebaseSearchPromise || firebaseSearchLoadState === 'ready') return firebaseSearchPromise;
+            if (!contentDb || firebaseSearchPromise || firebaseSearchFinished) return firebaseSearchPromise;
             const session = authSessionGeneration;
             const uid = auth.currentUser?.uid;
             firebaseSearchLoadState = 'loading';
             firebaseSearchPromise = (async () => {
                 try {
-                    const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), where('status', '==', 'published'), limit(100)));
+                    const constraints = [where('status', '==', 'published'), limit(firebaseSearchPageSize)];
+                    if (firebaseSearchCursor) constraints.push(startAfter(firebaseSearchCursor));
+                    const snapshot = await getDocs(query(collection(contentDb, 'managedDocuments'), ...constraints));
                     if (session !== authSessionGeneration || auth.currentUser?.uid !== uid) return;
-                    firebaseSearchDocuments = snapshot.docs.map(item => item.data()).filter(item => item.status === 'published');
+                    firebaseSearchDocuments.push(...snapshot.docs.map(item => item.data()).filter(item => item.status === 'published'));
+                    if (!snapshot.empty) firebaseSearchCursor = snapshot.docs[snapshot.docs.length - 1];
+                    firebaseSearchFinished = snapshot.size < firebaseSearchPageSize;
                     firebaseSearchLoadState = 'ready';
                 } catch {
                     if (session === authSessionGeneration) firebaseSearchLoadState = 'error';
@@ -1468,6 +1477,11 @@
             list.replaceChildren();
             const retry = document.getElementById('retryGlobalSearch');
             if (retry) retry.hidden = globalSearchFailedSheets.size === 0;
+            const moreFirebase = document.getElementById('loadMoreFirebaseSearch');
+            if (moreFirebase) {
+                moreFirebase.hidden = firebaseSearchFinished || !contentDb;
+                moreFirebase.disabled = firebaseSearchLoadState === 'loading';
+            }
             if (firebaseSearchLoadState === 'pending') void loadFirebaseSearchDocuments();
             if (!query) {
                 count.textContent = 'พิมพ์ชื่อเอกสารเพื่อค้นหาทุกหมวด · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด';
@@ -1505,7 +1519,7 @@
             count.textContent = 'พบ ' + results.length + ' รายการ · โหลดข้อมูลแล้ว ' + readySheets + '/' + totalSheets + ' หมวด' +
                 (globalSearchFailedSheets.size ? ' · โหลดไม่สำเร็จ ' + globalSearchFailedSheets.size + ' หมวด (ลองโหลดอีกครั้งได้)' :
                     readySheets < totalSheets ? ' (ผลการค้นหายังไม่ครบทุกหมวด)' : '') +
-                (firebaseSearchLoadState === 'ready' ? ' · รวมเอกสาร Firebase ชุดแรก (สูงสุด 100 รายการ)' : firebaseSearchLoadState === 'error' ? ' · โหลด Firebase ไม่สำเร็จ' : ' · กำลังโหลด Firebase');
+                (firebaseSearchLoadState === 'ready' ? ' · ค้นหา Firebase แล้ว ' + firebaseSearchDocuments.length + ' รายการ' + (firebaseSearchFinished ? ' (ครบแล้ว)' : ' (ยังมีรายการถัดไป)') : firebaseSearchLoadState === 'error' ? ' · โหลด Firebase ไม่สำเร็จ (กดค้นหาชุดถัดไปเพื่อลองอีกครั้ง)' : ' · กำลังโหลด Firebase');
             if (!results.length) {
                 const p = document.createElement('p');
                 p.textContent = globalSearchFailedSheets.size ? 'ยังไม่พบเอกสารในหมวดที่โหลดสำเร็จ กรุณาลองโหลดหมวดที่ไม่สำเร็จอีกครั้ง' :
@@ -1809,7 +1823,7 @@
 
             // Determine what to render
             if (contentId === 'global-search') {
-                htmlContent += '<div class="global-search"><label for="globalDocumentSearch">ค้นหาจากชื่อเอกสารทุกหมวด</label><input id="globalDocumentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." aria-describedby="globalDocumentCount"><p id="globalDocumentCount" role="status"></p><button id="retryGlobalSearch" type="button" hidden class="mb-3 px-3 py-2 rounded-lg border border-gray-300">ลองโหลดหมวดที่ไม่สำเร็จอีกครั้ง</button><div id="globalDocumentResults"></div></div>';
+                htmlContent += '<div class="global-search"><label for="globalDocumentSearch">ค้นหาจากชื่อเอกสารทุกหมวด</label><input id="globalDocumentSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อเอกสาร..." aria-describedby="globalDocumentCount"><p id="globalDocumentCount" role="status"></p><button id="retryGlobalSearch" type="button" hidden class="mb-3 px-3 py-2 rounded-lg border border-gray-300">ลองโหลดหมวดที่ไม่สำเร็จอีกครั้ง</button><div id="globalDocumentResults"></div><button id="loadMoreFirebaseSearch" type="button" hidden class="mt-3 px-3 py-2 rounded-lg border border-gray-300">ค้นหาในเอกสาร Firebase ชุดถัดไป</button></div>';
             } else if (contentId === 'reader-recent' || contentId === 'reader-later') {
                 htmlContent += '<p class="text-sm text-gray-600 mb-4">รายการนี้เก็บในเบราว์เซอร์เครื่องนี้ ไม่ซิงก์ระหว่างอุปกรณ์</p><label for="readerLibrarySearch">ค้นหาเอกสารในรายการ</label><input id="readerLibrarySearch" type="search" placeholder="พิมพ์ชื่อเอกสาร..." autocomplete="off"><p id="readerLibraryCount" role="status"></p><div id="readerLibraryList"></div>';
             } else if (contentId === 'settings') {
@@ -2097,6 +2111,7 @@
                 }
             });
             if (contentId === 'global-search') {
+                document.getElementById('loadMoreFirebaseSearch')?.addEventListener('click', () => void loadFirebaseSearchDocuments());
                 document.getElementById('globalDocumentSearch')?.addEventListener('input', renderGlobalDocumentSearch);
                 renderGlobalDocumentSearch();
                 // An explicit cross-category search should search every sheet, even if
