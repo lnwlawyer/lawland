@@ -377,10 +377,14 @@
         }
         .home-compact-search input, .home-category-search input {
             flex: 1 1 0; min-width: 0; width: 100%; padding: 9px 12px;
+            min-height: 44px; font-size: 16px;
             border: 1px solid #cbd5e1; border-radius: 8px; background: #fff;
         }
         .home-compact-search button, .home-category-search button {
-            flex: 0 0 auto; border-radius: 8px; padding: 9px 12px; min-height: 42px;
+            flex: 0 0 auto; border-radius: 8px; padding: 9px 12px; min-height: 44px;
+        }
+        .home-compact-search :focus-visible, .home-category-search :focus-visible {
+            outline: 3px solid var(--button-primary-bg); outline-offset: 2px;
         }
         .home-compact-search button { color: #fff; }
         .home-category-search button { border: 1px solid #cbd5e1; background: #fff; }
