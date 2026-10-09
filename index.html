@@ -384,6 +384,7 @@
         }
         .home-compact-search button { color: #fff; }
         .home-category-search button { border: 1px solid #cbd5e1; background: #fff; }
+        .home-category-search button[hidden] { display: none; }
         @media (max-width: 640px) {
             .home-search-pair { grid-template-columns: minmax(0, 1fr); gap: 8px; }
         }
@@ -1690,7 +1691,7 @@
             else if (subMenuData[contentId] && subMenuData[contentId].length > 0) {
                 if (contentId === 'home') {
                     htmlContent += '<div class="home-search-pair"><form id="homeDocumentSearchForm" class="home-compact-search" role="search"><label for="homeDocumentSearch" class="sr-only">ค้นหาเอกสารทุกหมวด</label><input id="homeDocumentSearch" type="search" autocomplete="off" placeholder="ค้นหาเอกสารทุกหมวด..." required><button type="submit" aria-label="ค้นหาเอกสาร" style="background-color:var(--button-primary-bg)">ค้นหา</button></form>';
-                    htmlContent += '<div class="home-category-search"><label for="menuSearch" class="sr-only">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="ค้นหาหมวดย่อย..." aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" aria-label="ล้างคำค้นหาหมวดย่อย">ล้าง</button></div></div>';
+                    htmlContent += '<div class="home-category-search"><label for="menuSearch" class="sr-only">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="ค้นหาหมวดย่อย..." aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" aria-label="ล้างคำค้นหาหมวดย่อย" hidden>ล้าง</button></div></div>';
                 } else {
                     htmlContent += '<div class="mb-4"><label for="menuSearch" class="sr-only">ค้นหาหมวดย่อย</label><input id="menuSearch" type="search" autocomplete="off" placeholder="พิมพ์ชื่อหมวด..." class="w-full p-2 border border-gray-300 rounded-lg" aria-controls="subMenuGrid" aria-describedby="menuCount"><button id="clearMenuSearch" type="button" class="mt-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">ล้างคำค้นหา</button></div>';
                 }
@@ -1867,6 +1868,8 @@
             });
             menuSearch?.addEventListener('input', () => {
                 const query = menuSearch.value.trim();
+                const clearMenuButton = document.getElementById('clearMenuSearch');
+                if (clearMenuButton && contentId === 'home') clearMenuButton.hidden = !query;
                 let visible = 0;
                 mainContentDisplay.querySelectorAll('#subMenuGrid .menu-card').forEach(card => {
                     const matches = matchesSearchTerms(card.dataset.menuSearch, query);
