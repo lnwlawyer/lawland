@@ -781,15 +781,31 @@
 
         // --- Auth Logic ---
         
+        let roleRoutingGeneration = 0;
         // 1. Handle Auth State Change
         if (auth) {
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    // Login Success
-                    showMainApp(user);
-                } else {
-                    // Logout / Not Logged in
+            onAuthStateChanged(auth, async (user) => {
+                const routingGeneration = ++roleRoutingGeneration;
+                if (!user) {
                     showLoginScreen();
+                    return;
+                }
+                // A single login entry point routes users by a freshly verified claim.
+                loginPage.classList.add('hidden');
+                mainLayout.classList.add('hidden');
+                try {
+                    const token = await user.getIdTokenResult(true);
+                    if (routingGeneration !== roleRoutingGeneration || auth.currentUser?.uid !== user.uid) return;
+                    if (token.claims.admin === true) {
+                        window.location.replace('./admin.html');
+                        return;
+                    }
+                    showMainApp(user);
+                } catch (error) {
+                    if (routingGeneration !== roleRoutingGeneration) return;
+                    console.error('Role verification failed:', error);
+                    showLoginScreen();
+                    showError('ไม่สามารถตรวจสอบสิทธิ์บัญชีได้ กรุณาเข้าสู่ระบบใหม่');
                 }
             });
         } else {
