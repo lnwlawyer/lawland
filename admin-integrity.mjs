@@ -21,3 +21,18 @@ export function auditCatalog(mainMenus,subMenus,overrides,documents){
  }
  return findings;
 }
+
+export function auditSheetDocuments(subMenus,documents){
+ const findings=[],ids=new Set(subMenus.map(x=>x.subMenuId));
+ for(const item of documents){
+  const category=String(item.parentSubMenuId||'').trim();
+  if(!category)findings.push({severity:'warning',type:'sheet-document-without-submenu',id:String(item.id||''),message:'เอกสาร Google Sheets ไม่ระบุหมวดหมู่: '+String(item.title||item.docTitle||item.id||'ไม่ระบุชื่อ')});
+  else if(!ids.has(category))findings.push({severity:'warning',type:'sheet-document-unmapped',id:String(item.id||''),message:'เอกสาร Google Sheets อ้างหมวดหมู่ที่ไม่แสดง: '+String(item.title||item.docTitle||item.id||'ไม่ระบุชื่อ')});
+ }
+ return findings;
+}
+export function summarizeFindings(findings){
+ const result={errors:0,warnings:0,byType:{}};
+ for(const finding of findings){if(finding.severity==='error')result.errors++;else result.warnings++;result.byType[finding.type]=(result.byType[finding.type]||0)+1}
+ return result;
+}
