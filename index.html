@@ -737,6 +737,7 @@
         // Import Firebase Functions
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Register a same-origin worker; avoid unsupported blob service-worker URLs.
         if ('serviceWorker' in navigator) {
@@ -758,9 +759,11 @@
 
         // --- Initialize Firebase ---
         let auth;
+        let contentDb;
         try {
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
+            contentDb = getFirestore(app);
         } catch (e) {
             console.warn("Firebase authentication initialization failed.");
         }
@@ -1495,6 +1498,53 @@
             }
         }
 
+        const ABOUT_PUBLIC_FIELDS = ['name','role','description','contact'];
+        const ABOUT_DEFAULTS = Object.freeze({name:'พงศธร บุญประเสริฐ',role:'ผู้ดูแลระบบ',description:'ผู้อำนวยการส่วนกำหนดสิทธิในที่ดินและควบคุมทะเบียนที่ดิน สำนักมาตรฐานการทะเบียนที่ดิน กรมที่ดิน',contact:'ยังไม่ได้ระบุช่องทางติดต่อสำหรับหน้านี้'});
+        const ABOUT_LIMITS = Object.freeze({name:120,role:150,description:1000,contact:250});
+        let publishedAbout = null;
+        function validAbout(data) {
+            return data && ABOUT_PUBLIC_FIELDS.every(key => typeof data[key] === 'string' && data[key].trim().length > 0 && data[key].length <= ABOUT_LIMITS[key]);
+        }
+        async function loadPublishedAbout(navigationRequest) {
+            if (!contentDb) return;
+            try {
+                const snapshot = await getDoc(doc(contentDb,'publicContent','about'));
+                if (navigationRequest !== latestNavigationRequest || historyStack[historyStack.length - 1] !== 'about') return;
+                const data = snapshot.exists() ? snapshot.data() : null;
+                if (validAbout(data)) {
+                    publishedAbout = Object.fromEntries(ABOUT_PUBLIC_FIELDS.map(key => [key,data[key]]));
+                    for (const key of ABOUT_PUBLIC_FIELDS) {
+                        const target = document.getElementById('publishedAbout-' + key);
+                        if (target) target.textContent = publishedAbout[key];
+                    }
+                }
+            } catch (error) {
+                console.warn('Published About could not be loaded:', error?.code || 'unavailable');
+                const note = document.getElementById('publishedAboutNotice');
+                if (note && navigationRequest === latestNavigationRequest) note.textContent='ไม่สามารถโหลดข้อมูลล่าสุดได้ ขณะนี้แสดงข้อมูลพื้นฐาน';
+            }
+        }
+        async function publishAbout(data, note, button) {
+            if (!verifiedAdmin || !auth.currentUser || !contentDb || !validAbout(data)) return;
+            button.disabled = true;
+            note.textContent = 'กำลังตรวจสอบสิทธิ์และเผยแพร่ข้อมูล...';
+            try {
+                const actor = auth.currentUser;
+                const token = await actor.getIdTokenResult(true);
+                if (!verifiedAdmin || auth.currentUser?.uid !== actor.uid || token.claims.admin !== true) throw new Error('ไม่มีสิทธิ์เผยแพร่');
+                const ref = doc(contentDb,'publicContent','about');
+                await runTransaction(contentDb, async transaction => {
+                    const current = await transaction.get(ref);
+                    const version = current.exists() && Number.isSafeInteger(current.data().version) ? current.data().version + 1 : 1;
+                    transaction.set(ref,{...data,version,updatedBy:actor.uid,updatedAt:serverTimestamp()});
+                });
+                publishedAbout = {...data};
+                try { localStorage.removeItem(ABOUT_DRAFT_PREFIX + actor.uid); } catch {}
+                renderContent('about');
+            } catch (error) {
+                note.textContent = 'เผยแพร่ไม่สำเร็จ: ' + (error?.code === 'permission-denied' ? 'ยังไม่ได้ตั้งค่ากฎสิทธิ์ Firestore หรือไม่มีสิทธิ์ Admin' : 'กรุณาตรวจสอบการเชื่อมต่อและลองใหม่');
+            } finally { button.disabled = false; }
+        }
         const ABOUT_DRAFT_PREFIX = 'lawland-about-draft-v1:';
         function readAboutDraft() {
             if (!verifiedAdmin || !auth.currentUser) return null;
@@ -1508,8 +1558,7 @@
         }
         function openAboutEditor() {
             if (!verifiedAdmin || !auth.currentUser) return;
-            const defaults = {name:'พงศธร บุญประเสริฐ',role:'ผู้ดูแลระบบ',description:'ผู้อำนวยการส่วนกำหนดสิทธิในที่ดินและควบคุมทะเบียนที่ดิน สำนักมาตรฐานการทะเบียนที่ดิน กรมที่ดิน',contact:'ยังไม่ได้ระบุช่องทางติดต่อสำหรับหน้านี้'};
-            const values = readAboutDraft() || defaults;
+            const values = readAboutDraft() || publishedAbout || ABOUT_DEFAULTS;
             mainContentTitle.textContent = 'แก้ไขเมนูเกี่ยวกับฉัน';
             mainContentDisplay.replaceChildren();
             const form = document.createElement('form');
@@ -1525,11 +1574,19 @@
             }
             const note = document.createElement('p');
             note.className='text-sm text-amber-800';
-            note.textContent='บันทึกเป็นฉบับร่างในเบราว์เซอร์นี้เท่านั้น ยังไม่เผยแพร่ข้อมูลให้ผู้ใช้คนอื่น';
+            note.textContent='บันทึกฉบับร่างไว้ในเบราว์เซอร์ หรือกดเผยแพร่เพื่อให้ผู้ใช้ทุกคนเห็น (ต้องตั้งค่ากฎ Firestore ก่อน)';
             form.append(note);
             const save = document.createElement('button');
             save.type='submit';save.className='rounded-lg bg-emerald-700 text-white px-4 py-2';save.textContent='บันทึกฉบับร่าง';
             form.append(save);
+            const publish = document.createElement('button');
+            publish.type='button';publish.className='ml-2 rounded-lg bg-blue-700 text-white px-4 py-2';publish.textContent='เผยแพร่ให้ผู้ใช้ทุกคน';
+            form.append(publish);
+            publish.addEventListener('click',()=>{
+                const data=Object.fromEntries(fields.map(([key])=>[key,form.elements.namedItem(key).value.trim()]));
+                if (!validAbout(data)) {note.textContent='กรุณากรอกข้อมูลทุกช่องตามความยาวที่กำหนด';return;}
+                publishAbout(data,note,publish);
+            });
             form.addEventListener('submit',event=>{
                 event.preventDefault();
                 if (!verifiedAdmin || !auth.currentUser) return;
@@ -1767,16 +1824,15 @@
             } else if (contentId === 'admin-management' && verifiedAdmin) {
                 htmlContent += '<section class="max-w-2xl mx-auto rounded-xl bg-white p-5 shadow-sm"><h2 class="text-xl font-semibold mb-3">จัดการระบบ</h2><p class="text-gray-600 mb-4">จัดการข้อมูลสำหรับผู้ดูแลระบบ</p><button id="editAboutMenu" type="button" class="rounded-lg bg-emerald-700 text-white px-4 py-2">แก้ไขเมนูเกี่ยวกับฉัน</button><p class="text-sm text-gray-500 mt-4">ขณะนี้รองรับการแก้ไขฉบับร่างเฉพาะเบราว์เซอร์นี้ ยังไม่เผยแพร่ไปยังผู้ใช้คนอื่น</p></section>';
             } else if (contentId === 'about') {
-                const aboutDefaults = {name:'พงศธร บุญประเสริฐ',role:'ผู้ดูแลระบบ',description:'ผู้อำนวยการส่วนกำหนดสิทธิในที่ดินและควบคุมทะเบียนที่ดิน สำนักมาตรฐานการทะเบียนที่ดิน กรมที่ดิน',contact:'ยังไม่ได้ระบุช่องทางติดต่อสำหรับหน้านี้'};
-                const aboutDraft = verifiedAdmin ? readAboutDraft() : null;
-                const aboutInfo = aboutDraft || aboutDefaults;
+                const aboutInfo = publishedAbout || ABOUT_DEFAULTS;
                 htmlContent += `
                     <div class="profile-card text-center p-8">
                         <img src="https://placehold.co/120x120/a7f3d0/065f46?text=User" alt="Profile Picture" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white shadow-lg">
-                        <h3 class="text-2xl font-bold text-gray-800">${escapeHtml(aboutInfo.name)}</h3>
-                        <p class="text-gray-500 font-medium">${escapeHtml(aboutInfo.role)}</p>
-                        <p class="mt-4 text-gray-600 max-w-md mx-auto">${escapeHtml(aboutInfo.description)}</p>
-                        <p class="mt-6 text-sm text-gray-500">${escapeHtml(aboutInfo.contact)}</p>
+                        <h3 id="publishedAbout-name" class="text-2xl font-bold text-gray-800">${escapeHtml(aboutInfo.name)}</h3>
+                        <p id="publishedAbout-role" class="text-gray-500 font-medium">${escapeHtml(aboutInfo.role)}</p>
+                        <p id="publishedAbout-description" class="mt-4 text-gray-600 max-w-md mx-auto">${escapeHtml(aboutInfo.description)}</p>
+                        <p id="publishedAbout-contact" class="mt-6 text-sm text-gray-500">${escapeHtml(aboutInfo.contact)}</p>
+                        <p id="publishedAboutNotice" class="text-xs text-gray-500 mt-3" aria-live="polite"></p>
                         ${verifiedAdmin ? '<button id="editAboutMenu" type="button" class="mt-4 rounded-lg bg-emerald-700 text-white px-4 py-2">แก้ไขข้อมูล</button>' : ''}
                     </div>
                 `;
@@ -1858,6 +1914,7 @@
             if (navigationRequest !== latestNavigationRequest) return;
             mainContentDisplay.innerHTML = htmlContent;
             document.getElementById('editAboutMenu')?.addEventListener('click', openAboutEditor);
+            if (contentId === 'about') void loadPublishedAbout(navigationRequest);
             const homeSearchForm = document.getElementById('homeDocumentSearchForm');
             homeSearchForm?.addEventListener('submit', async event => {
                 event.preventDefault();
