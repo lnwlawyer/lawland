@@ -1943,7 +1943,10 @@
                 htmlContent += '</div><p id="menuSearchEmpty" class="text-gray-600 mt-4 hidden" role="status">ไม่พบหมวดที่ตรงกับคำค้นหา</p>';
             } else {
                 // Lazy load documents if not already fetched
-                const parentMenuId = historyStack[0];
+                // Resolve the document sheet from the selected category, not navigation history.
+                // Home cards are children of 'home' in the UI, but their documents
+                // may belong to a different parent menu in the source catalog.
+                const parentMenuId = currentSubMenuItem?.parentMenuId || historyStack[0];
                 const docSheetName = `docs_${parentMenuId}`;
                 
                 if (!loadedDocumentSheets.has(docSheetName)) {
