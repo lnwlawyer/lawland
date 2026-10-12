@@ -32,7 +32,7 @@ export function auditSheetDocuments(subMenus,documents){
   const name=String(item.docName||item.title||item.docTitle||item.id||'ไม่ระบุชื่อ');
   const ref=' [รหัสหมวดหมู่: '+(category||'ไม่ระบุ')+']';
   if(!category)findings.push({severity:'warning',type:'sheet-document-without-submenu',id:String(item.id||''),message:'เอกสาร Google Sheets ไม่ระบุหมวดหมู่: '+name+ref});
-  else if(!ids.has(category))findings.push({severity:'warning',type:'sheet-document-unmapped',id:String(item.id||''),message:'เอกสาร Google Sheets อ้างหมวดหมู่ที่ไม่แสดง: '+String(item.title||item.docTitle||item.id||'ไม่ระบุชื่อ')});
+  else if(!ids.has(category))findings.push({severity:'warning',type:'sheet-document-unmapped',id:String(item.id||''),message:'เอกสาร Google Sheets อ้างหมวดหมู่ที่ไม่แสดง: '+name+ref});
  }
  return findings;
 }
