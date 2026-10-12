@@ -2215,7 +2215,7 @@
             if (refreshButton) {
                 refreshButton.addEventListener('click', async () => {
                     const status = document.getElementById('refreshDocumentStatus');
-                    const parentMenuId = historyStack[0];
+                    const parentMenuId = currentSubMenuItem?.parentMenuId || historyStack[0];
                     const session = authSessionGeneration;
                     refreshButton.disabled = true;
                     status.textContent = 'กำลังอัปเดตรายการ...';
