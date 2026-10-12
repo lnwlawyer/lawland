@@ -25,11 +25,14 @@ export function auditCatalog(mainMenus,subMenus,overrides,documents){
 }
 
 export function auditSheetDocuments(subMenus,documents){
- const findings=[],ids=new Set(subMenus.map(x=>x.subMenuId));
+ const findings=[],ids=new Set(subMenus.map(x=>String(x.subMenuId||'').trim()));
  for(const item of documents){
+  if(!item||typeof item!=='object')continue;
   const category=String(item.parentSubMenuId||'').trim();
-  if(!category)findings.push({severity:'warning',type:'sheet-document-without-submenu',id:String(item.id||''),message:'เอกสาร Google Sheets ไม่ระบุหมวดหมู่: '+String(item.title||item.docTitle||item.id||'ไม่ระบุชื่อ')});
-  else if(!ids.has(category))findings.push({severity:'warning',type:'sheet-document-unmapped',id:String(item.id||''),message:'เอกสาร Google Sheets อ้างหมวดหมู่ที่ไม่แสดง: '+String(item.title||item.docTitle||item.id||'ไม่ระบุชื่อ')});
+  const name=String(item.docName||item.title||item.docTitle||item.id||'ไม่ระบุชื่อ');
+  const ref=' [รหัสหมวดหมู่: '+(category||'ไม่ระบุ')+']';
+  if(!category)findings.push({severity:'warning',type:'sheet-document-without-submenu',id:String(item.id||''),message:'เอกสาร Google Sheets ไม่ระบุหมวดหมู่: '+name+ref});
+  else if(!ids.has(category))findings.push({severity:'warning',type:'sheet-document-unmapped',id:String(item.id||''),message:'เอกสาร Google Sheets อ้างหมวดหมู่ที่ไม่แสดง: '+name+ref});
  }
  return findings;
 }
