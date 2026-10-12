@@ -20,7 +20,20 @@ export function mergeMenuCatalog(mainMenus,subMenus,overrides){
  const order=(a,b,key)=>Number(a[key]??9999)-Number(b[key]??9999);
  const mains=[...main.values()].sort((a,b)=>order(a,b,'menuOrder'));
  const ids=new Set(mains.map(x=>x.menuId));
- const subs=[...sub.values()].filter(x=>ids.has(x.parentMenuId)).sort((a,b)=>order(a,b,'subMenuOrder'));
+ // Preserve nested Google Sheets submenu rows (e.g. home -> A0001 -> B0001).
+ // Only remove submenus whose parent is neither a main menu nor another submenu.
+ const reachable=new Set(ids);
+ let changed=true;
+ while(changed){
+  changed=false;
+  for(const item of sub.values()){
+   if(reachable.has(item.parentMenuId)&&!reachable.has(item.subMenuId)){
+    reachable.add(item.subMenuId);
+    changed=true;
+   }
+  }
+ }
+ const subs=[...sub.values()].filter(x=>reachable.has(x.subMenuId)).sort((a,b)=>order(a,b,'subMenuOrder'));
  return {mainMenus:mains,subMenus:subs};
 }
 
