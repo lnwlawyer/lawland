@@ -1106,6 +1106,19 @@
                 return [];
             }
         }
+        // Sheets are partitioned by top-level MainMenu, not by nested submenu IDs.
+        function documentRootMenuId(contentId) {
+            const mainIds = new Set(mainMenuData.map(item => item.menuId));
+            const visited = new Set();
+            let id = contentId;
+            while (!mainIds.has(id) && !visited.has(id)) {
+                visited.add(id);
+                const parent = Object.values(subMenuData).flat().find(item => item.subMenuId === id)?.parentMenuId;
+                if (!parent) break;
+                id = parent;
+            }
+            return mainIds.has(id) ? id : historyStack[0];
+        }
         function buildDataStructures(mainMenus, allSubMenus) {
             if (!Array.isArray(mainMenus) || !Array.isArray(allSubMenus)) {
                 throw new TypeError('Menu data must be arrays');
@@ -1946,7 +1959,7 @@
                 // Resolve the document sheet from the selected category, not navigation history.
                 // Home cards are children of 'home' in the UI, but their documents
                 // may belong to a different parent menu in the source catalog.
-                const parentMenuId = currentSubMenuItem?.parentMenuId || historyStack[0];
+                const parentMenuId = documentRootMenuId(contentId);
                 const docSheetName = `docs_${parentMenuId}`;
                 
                 if (!loadedDocumentSheets.has(docSheetName)) {
@@ -2215,7 +2228,7 @@
             if (refreshButton) {
                 refreshButton.addEventListener('click', async () => {
                     const status = document.getElementById('refreshDocumentStatus');
-                    const parentMenuId = currentSubMenuItem?.parentMenuId || historyStack[0];
+                    const parentMenuId = documentRootMenuId(contentId);
                     const session = authSessionGeneration;
                     refreshButton.disabled = true;
                     status.textContent = 'กำลังอัปเดตรายการ...';
